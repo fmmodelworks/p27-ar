@@ -143,7 +143,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v4.5';
+  const APP_VERSION = 'v5.0';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -276,8 +276,9 @@
   document.getElementById('calibBtn').addEventListener('click', ()=>{
     if (heading === null) { statusEl.textContent = '方位センサー未取得です'; return; }
     H0 = heading;
+    F0 = camF.slice(); R0 = camR.slice(); U0 = camU.slice();
     calibrated = true;
-    calibVal.textContent = '基準方位: ' + H0.toFixed(1) + '°';
+    calibVal.textContent = '基準方位: ' + H0.toFixed(1) + '° (傾きも同時に基準化)';
     updateHud();
   });
   function nudge(delta){
@@ -300,12 +301,16 @@
 
   // camera orientation vectors (world frame E/N/Up), updated per sensor event
   let camF = [0,1,0], camR = [1,0,0], camU = [0,0,1];
+  // calibration reference basis: captured at the moment of calibration, defines box +Y/+X/+Z
+  let F0 = [0,1,0], R0 = [1,0,0], U0 = [0,0,1];
 
-  // rotate a world-frame vector into box-frame (box +Y aligned with calibrated heading H0)
+  // convert a world-frame vector into box-frame using the calibrated reference basis
   function toBox(v){
-    const H0r = H0 * Math.PI/180;
-    const c = Math.cos(H0r), s = Math.sin(H0r);
-    return [ v[0]*c - v[1]*s, v[0]*s + v[1]*c, v[2] ];
+    return [
+      v[0]*R0[0] + v[1]*R0[1] + v[2]*R0[2],
+      v[0]*F0[0] + v[1]*F0[1] + v[2]*F0[2],
+      v[0]*U0[0] + v[1]*U0[1] + v[2]*U0[2]
+    ];
   }
 
   // project a box-frame point (x=right, y=forward, z=up, origin=pilot stand at ground)
@@ -326,15 +331,17 @@
     const sx = (xc/zc) * f;
     const sy = -(yc/zc) * f;
 
-    return { x: w/2 + sx, y: h/2 + sy, visible: true };
+    return { x: w/2 + sx, y: h/2 + sy, visible: true, zc: zc };
   }
 
   function drawLine(p1, p2, color, width){
     const a = project(p1[0], p1[1], p1[2]);
     const b = project(p2[0], p2[1], p2[2]);
     if (!a || !b || !a.visible || !b.visible) return;
+    const avgZc = (a.zc + b.zc) / 2;
+    const w = Math.max(0.75, Math.min(width || 2, 100 / avgZc));
     ctx.strokeStyle = color;
-    ctx.lineWidth = width || 2;
+    ctx.lineWidth = w;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -374,13 +381,15 @@
     function drawMarker(p, color, label){
       const proj = project(p[0], p[1], p[2]);
       if (!proj || !proj.visible) return;
+      // scale marker size with distance so far points look appropriately smaller/further
+      const radius = Math.max(2, Math.min(14, 300 / proj.zc));
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(proj.x, proj.y, 6, 0, Math.PI*2);
+      ctx.arc(proj.x, proj.y, radius, 0, Math.PI*2);
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = '14px sans-serif';
-      ctx.fillText(label, proj.x + 10, proj.y - 10);
+      ctx.fillText(label, proj.x + radius + 4, proj.y - radius - 2);
     }
 
     drawMarker(P0, '#ffffff', 'P0 (足元)');
@@ -489,6 +498,7 @@
     H0 = 0; pitchOffset = 0; rollOffset = 0;
     calibrated = true;
     updateManualCamera();
+    F0 = camF.slice(); R0 = camR.slice(); U0 = camU.slice();
     calibVal.textContent = 'テストモード(ドラッグ操作)';
     debugLine.textContent = '画面をドラッグしてカメラの向きをシミュレートできます';
     updateHud();
