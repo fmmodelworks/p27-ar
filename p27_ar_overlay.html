@@ -129,7 +129,7 @@
   <div class="row"><label>水平画角 目安(°)</label><input type="number" id="hfov" value="65" step="1"></div>
 
   <div class="legend">
-    <span><i class="swatch" style="background:#ff3b30;"></i>センターライン</span>
+    <span><i class="swatch" style="background:#ff3b30;"></i>センターライン(地上+上空)</span>
     <span><i class="swatch" style="background:#ffd60a;"></i>近/遠境界(A/C)</span>
     <span><i class="swatch" style="background:#30d158;"></i>左右境界(±角度)</span>
     <span><i class="swatch" style="background:#5ac8fa;"></i>上限/下限・縦辺</span>
@@ -139,7 +139,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.2';
+  const APP_VERSION = 'v1.3';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -356,8 +356,10 @@
     const zLow = params.hLow, zHigh = params.hHigh;
     const SEG = 8;
 
-    // center line (ground)
+    // center line (ground) + vertical center line risers at A and C
     drawSegmentedLine([0,0,zLow],[0,C,zLow], SEG, '#ff3b30', 2);
+    drawSegmentedLine([0,A,zLow],[0,A,zHigh], SEG, '#ff3b30', 2);
+    drawSegmentedLine([0,C,zLow],[0,C,zHigh], SEG, '#ff3b30', 2);
 
     // near boundary (A) full width, low and high
     drawSegmentedLine([-xA,A,zLow],[xA,A,zLow], SEG, '#ffd60a', 2);
