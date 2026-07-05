@@ -136,13 +136,14 @@
   <div class="legend">
     <span><i class="swatch" style="background:#0a84ff;"></i>P0→P1 (青)</span>
     <span><i class="swatch" style="background:#ffffff;"></i>P0→P2, P0→P3 (白)</span>
+    <span><i class="swatch" style="background:#ff3b30;"></i>P0→真上300m (赤)</span>
   </div>
   <div id="panelVersion" style="text-align:center; color:#555; font-size:10px; margin-top:14px;">P-27 AR Overlay v1.1 (2026-07-05)</div>
 </div>
 
 <script>
 (function(){
-  const APP_VERSION = 'v4.4';
+  const APP_VERSION = 'v4.5';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -368,6 +369,7 @@
     drawSegmentedLine(P0, P1, SEG, '#0a84ff', 2);
     drawSegmentedLine(P0, P2, SEG, '#ffffff', 2);
     drawSegmentedLine(P0, P3, SEG, '#ffffff', 2);
+    drawSegmentedLine(P0, [0,0,300], SEG, '#ff3b30', 2);
 
     function drawMarker(p, color, label){
       const proj = project(p[0], p[1], p[2]);
