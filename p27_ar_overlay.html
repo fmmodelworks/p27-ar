@@ -136,14 +136,15 @@
   <div class="legend">
     <span><i class="swatch" style="background:#0a84ff;"></i>P0→P1 (青)</span>
     <span><i class="swatch" style="background:#ffffff;"></i>P0→P2, P0→P3, P2/P3→真上300m (白)</span>
-    <span><i class="swatch" style="background:#ff3b30;"></i>P0→真上300m (赤)</span>
+    <span><i class="swatch" style="background:#ff3b30;"></i>P0/P1→真上300m (赤) / Y200mライン (赤)</span>
+    <span><i class="swatch" style="background:#ff9500;"></i>P1→P2/P3縦線(45度上昇)</span>
   </div>
   <div id="panelVersion" style="text-align:center; color:#555; font-size:10px; margin-top:14px;">P-27 AR Overlay v1.1 (2026-07-05)</div>
 </div>
 
 <script>
 (function(){
-  const APP_VERSION = 'v5.1';
+  const APP_VERSION = 'v5.7';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -339,7 +340,8 @@
     const b = project(p2[0], p2[1], p2[2]);
     if (!a || !b || !a.visible || !b.visible) return;
     const avgZc = (a.zc + b.zc) / 2;
-    const w = Math.max(0.75, Math.min(width || 2, 100 / avgZc));
+    const reqWidth = width || 2;
+    const w = Math.max(reqWidth * 0.3, Math.min(reqWidth, 300 / avgZc));
     ctx.strokeStyle = color;
     ctx.lineWidth = w;
     ctx.beginPath();
@@ -376,15 +378,32 @@
     drawSegmentedLine(P0, P1, SEG, '#0a84ff', 2);
     drawSegmentedLine(P0, P2, SEG, '#ffffff', 2);
     drawSegmentedLine(P0, P3, SEG, '#ffffff', 2);
+    drawSegmentedLine(P3, P1, SEG, '#ffffff', 2);
+    drawSegmentedLine(P1, P2, SEG, '#ffffff', 2);
+
+    // line parallel to the Y=150 line (P3-P1-P2), at Y=200, ground level
+    drawSegmentedLine([-150,200,zLow], [150,200,zLow], SEG, '#ff3b30', 2);
+
+    // intersection points of the P0-P2 / P0-P3 lines (extended) with the Y=200 line
+    const IX2 = [200, 200, zLow]; // P0->P2 direction (1,1) extended to y=200
+    const IX3 = [-200, 200, zLow]; // P0->P3 direction (-1,1) extended to y=200
     drawSegmentedLine(P0, [0,0,300], SEG, '#ff3b30', 2);
-    drawSegmentedLine(P2, [P2[0],P2[1],300], SEG, '#ffffff', 2);
-    drawSegmentedLine(P3, [P3[0],P3[1],300], SEG, '#ffffff', 2);
+    drawSegmentedLine(P1, [P1[0],P1[1],300], SEG, '#ff3b30', 2);
+    drawSegmentedLine(P2, [P2[0],P2[1],300], SEG, '#ffffff', 6);
+    drawSegmentedLine(P3, [P3[0],P3[1],300], SEG, '#ffffff', 6);
+
+    // 45-degree climbing lines from P1 toward the P2/P3 vertical lines
+    // (horizontal run = vertical rise, so they meet the P2/P3 Z-lines at height = horizontal distance)
+    const distP1P2 = Math.hypot(P2[0]-P1[0], P2[1]-P1[1]);
+    const distP1P3 = Math.hypot(P3[0]-P1[0], P3[1]-P1[1]);
+    drawSegmentedLine(P1, [P2[0], P2[1], distP1P2], SEG, '#ff9500', 3);
+    drawSegmentedLine(P1, [P3[0], P3[1], distP1P3], SEG, '#ff9500', 3);
 
     function drawMarker(p, color, label){
       const proj = project(p[0], p[1], p[2]);
       if (!proj || !proj.visible) return;
       // scale marker size with distance so far points look appropriately smaller/further
-      const radius = Math.max(2, Math.min(14, 300 / proj.zc));
+      const radius = Math.max(4, Math.min(28, 600 / proj.zc));
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(proj.x, proj.y, radius, 0, Math.PI*2);
@@ -398,6 +417,8 @@
     drawMarker(P1, '#0a84ff', 'P1 (0,150)');
     drawMarker(P2, '#ff3b30', 'P2 (150,150)');
     drawMarker(P3, '#30d158', 'P3 (-150,150)');
+    drawMarker(IX2, '#ff3b30', 'X2 (200,200)');
+    drawMarker(IX3, '#ff3b30', 'X3 (-200,200)');
 
     drawMinimap(P0, P1, P2, P3);
 
