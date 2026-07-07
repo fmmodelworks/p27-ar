@@ -102,16 +102,14 @@
 </div>
 
 <button id="panelToggle">⚙</button>
+<button id="helpToggle" style="position:fixed; bottom:10px; right:64px; z-index:8; width:44px; height:44px; border-radius:50%; padding:0; font-size:18px; background:#444;">?</button>
 
-<div id="panel">
-  <div id="panelHeader">
-    <strong style="color:#6cf;">設定</strong>
-    <button id="panelClose">✕</button>
+<div id="helpModal" style="display:none; position:fixed; inset:0; z-index:10; background:rgba(0,0,0,0.85); padding:16px; box-sizing:border-box; overflow-y:auto;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <strong style="color:#6cf; font-size:15px;">HELP(点・線の定義)</strong>
+    <button id="helpClose" style="background:#444; width:34px; height:34px; border-radius:50%; padding:0; font-size:16px;">✕</button>
   </div>
-  <div id="debugLine">センサー受信: 待機中...</div>
-  <div id="debugProj" style="font-size:10px; color:#8cf; white-space:pre-line;"></div>
-  <h2>HELP(点・線の定義)</h2>
-  <div style="font-size:11px; line-height:1.6; color:#ddd;">
+  <div style="font-size:12px; line-height:1.7; color:#ddd;">
     <strong>座標系</strong>: パイロット立ち位置=原点(0,0)。+Y=奥行き(前方)、+X=右、-X=左、+Z=高さ<br>
     ※P0(原点・足元)はマーカー非表示(真上を向いた際に不安定なため)。線の起点としては使用<br><br>
     <strong>点</strong><br>
@@ -130,6 +128,15 @@
     <span style="color:#ff3b30;">■</span> X2、X3 交点マーカー(赤)<br>
     <span style="color:#ff9500;">■</span> P1→P2/P3縦線への45度上昇ライン(オレンジ)
   </div>
+</div>
+
+<div id="panel">
+  <div id="panelHeader">
+    <strong style="color:#6cf;">設定</strong>
+    <button id="panelClose">✕</button>
+  </div>
+  <div id="debugLine">センサー受信: 待機中...</div>
+  <div id="debugProj" style="font-size:10px; color:#8cf; white-space:pre-line;"></div>
 
   <h2>表示モード</h2>
   <div class="calibRow">
@@ -173,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.3';
+  const APP_VERSION = 'v1.5';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -214,6 +221,13 @@
 
   panelToggle.addEventListener('click', ()=>{ panel.classList.toggle('open'); });
   document.getElementById('panelClose').addEventListener('click', ()=>{ panel.classList.remove('open'); });
+
+  document.getElementById('helpToggle').addEventListener('click', ()=>{
+    document.getElementById('helpModal').style.display = 'block';
+  });
+  document.getElementById('helpClose').addEventListener('click', ()=>{
+    document.getElementById('helpModal').style.display = 'none';
+  });
 
   document.getElementById('modePerspective').addEventListener('click', ()=>{
     projMode = 'perspective';
@@ -356,6 +370,14 @@
   // project a box-frame point (x=right, y=forward, z=up, origin=pilot stand at ground)
   // to screen pixel coords using true perspective projection. returns {x,y,visible}
   function project(px, py, pz){
+    if (projMode === 'orthographic') {
+      // fixed top-down (bird's-eye) view, independent of device tilt/roll —
+      // box +Y (forward) maps to screen-up, box +X (right) maps to screen-right
+      const s = params.orthoScale;
+      const w = canvas.width, h = canvas.height;
+      return { x: w/2 + px*s, y: h/2 - py*s, visible: true, zc: 100 };
+    }
+
     const F = toBox(camF), R = toBox(camR), U = toBox(camU);
     const eyeZ = params.eyeHeight;
     const vx = px, vy = py, vz = pz - eyeZ;
@@ -367,12 +389,6 @@
     const yc = vx*U[0] + vy*U[1] + vz*U[2];
 
     const w = canvas.width, h = canvas.height;
-
-    if (projMode === 'orthographic') {
-      const s = params.orthoScale;
-      return { x: w/2 + xc*s, y: h/2 - yc*s, visible: true, zc: zc };
-    }
-
     const f = (w/2) / Math.tan(params.hfov * Math.PI/180 / 2);
     const sx = (xc/zc) * f;
     const sy = -(yc/zc) * f;
