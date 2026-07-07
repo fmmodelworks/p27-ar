@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v2.2';
+  const APP_VERSION = 'v2.3';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -437,9 +437,23 @@
     const P2 = [150*tan60, 150, zLow];
     const P3 = [-150*tan60, 150, zLow];
 
-    drawSegmentedLine(P0, P1, SEG, '#0a84ff', 2);
-    drawSegmentedLine(P0, P2, SEG, '#ffffff', 2);
-    drawSegmentedLine(P0, P3, SEG, '#ffffff', 2);
+    // trim the near-P0 portion of a line (P0 wobbles a lot on screen since it's
+    // only 1.5m from the camera; skip the first few meters to hide that jitter)
+    function trimNearP0(target, minDist){
+      const dist = Math.hypot(target[0]-P0[0], target[1]-P0[1], target[2]-P0[2]);
+      if (dist <= minDist) return P0;
+      const t = minDist / dist;
+      return [
+        P0[0] + (target[0]-P0[0])*t,
+        P0[1] + (target[1]-P0[1])*t,
+        P0[2] + (target[2]-P0[2])*t
+      ];
+    }
+    const NEAR_P0_TRIM = 5; // meters
+
+    drawSegmentedLine(trimNearP0(P1, NEAR_P0_TRIM), P1, SEG, '#0a84ff', 2);
+    drawSegmentedLine(trimNearP0(P2, NEAR_P0_TRIM), P2, SEG, '#ffffff', 2);
+    drawSegmentedLine(trimNearP0(P3, NEAR_P0_TRIM), P3, SEG, '#ffffff', 2);
     drawSegmentedLine(P3, P1, SEG, '#ffffff', 2);
     drawSegmentedLine(P1, P2, SEG, '#ffffff', 2);
 
@@ -453,7 +467,7 @@
 
     drawSegmentedLine(P4, [-300,150,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P4, [300,150,300], SEG, '#ff3b30', 2);
-    drawSegmentedLine(P0, [0,0,300], SEG, '#ff3b30', 2);
+    drawSegmentedLine(trimNearP0([0,0,300], NEAR_P0_TRIM), [0,0,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P1, [P1[0],P1[1],300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P2, [P2[0],P2[1],300], SEG, '#ffffff', 6);
     drawSegmentedLine(P3, [P3[0],P3[1],300], SEG, '#ffffff', 6);
