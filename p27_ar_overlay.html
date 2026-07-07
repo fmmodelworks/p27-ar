@@ -51,9 +51,11 @@
   }
   #panel {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 6;
-    background: rgba(15,15,15,0.92); color: #eee;
+    background: rgba(15,15,15,0.55);
+    backdrop-filter: blur(2px);
+    color: #eee;
     padding: 12px 14px 18px; box-sizing: border-box;
-    max-height: 68%; overflow-y: auto;
+    max-height: 55%; overflow-y: auto;
     transform: translateY(100%); transition: transform 0.25s ease;
     font-size: 12px;
   }
@@ -104,7 +106,7 @@
 <button id="panelToggle">⚙</button>
 <button id="helpToggle" style="position:fixed; bottom:10px; right:64px; z-index:8; width:44px; height:44px; border-radius:50%; padding:0; font-size:18px; background:#444;">?</button>
 
-<div id="helpModal" style="display:none; position:fixed; inset:0; z-index:10; background:rgba(0,0,0,0.85); padding:16px; box-sizing:border-box; overflow-y:auto;">
+<div id="helpModal" style="display:none; position:fixed; inset:0; z-index:10; background:rgba(0,0,0,0.55); backdrop-filter: blur(2px); padding:16px; box-sizing:border-box; overflow-y:auto;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
     <strong style="color:#6cf; font-size:15px;">HELP(点・線の定義)</strong>
     <button id="helpClose" style="background:#444; width:34px; height:34px; border-radius:50%; padding:0; font-size:16px;">✕</button>
@@ -180,7 +182,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v2.3';
+  const APP_VERSION = 'v2.4';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
