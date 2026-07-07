@@ -168,7 +168,8 @@
   <div class="legend">
     <span><i class="swatch" style="background:#0a84ff;"></i>P0→P1 (青)</span>
     <span><i class="swatch" style="background:#ffffff;"></i>P0→P2, P0→P3, P2/P3→真上300m (白)</span>
-    <span><i class="swatch" style="background:#ff3b30;"></i>P0/P1→真上300m (赤) / Y200mライン (赤)</span>
+    <span><i class="swatch" style="background:#ff3b30;"></i>P0/P1→真上300m (赤) / Y200mライン (赤) / P4→X±300m高度300m (赤)</span>
+    <span><i class="swatch" style="background:#ffd60a;"></i>P4→X±300m地上へ下降 (黄)</span>
     <span><i class="swatch" style="background:#ff9500;"></i>P1→P2/P3縦線(45度上昇)</span>
   </div>
   <div id="panelVersion" style="text-align:center; color:#555; font-size:10px; margin-top:14px;">P-27 AR Overlay v1.1 (2026-07-05)</div>
@@ -176,7 +177,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v3.4';
+  const APP_VERSION = 'v3.5';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -436,6 +437,8 @@
 
     drawSegmentedLine(P4, [-300,150,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P4, [300,150,300], SEG, '#ff3b30', 2);
+    drawSegmentedLine(P4, [-300,150,zLow], SEG, '#ffd60a', 2);
+    drawSegmentedLine(P4, [300,150,zLow], SEG, '#ffd60a', 2);
     drawSegmentedLine(P0, [0,0,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P1, [P1[0],P1[1],300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P2, [P2[0],P2[1],300], SEG, '#ffffff', 6);
