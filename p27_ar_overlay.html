@@ -176,7 +176,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v3.2';
+  const APP_VERSION = 'v3.4';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -361,7 +361,7 @@
     const vx = px, vy = py, vz = pz - eyeZ;
 
     const zc = vx*F[0] + vy*F[1] + vz*F[2]; // depth along boresight
-    if (zc < 0.05) return { visible:false };
+    if (zc < 2) return { visible:false };
 
     const xc = vx*R[0] + vy*R[1] + vz*R[2];
     const yc = vx*U[0] + vy*U[1] + vz*U[2];
