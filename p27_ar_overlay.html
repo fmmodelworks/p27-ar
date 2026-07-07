@@ -144,7 +144,7 @@
     <button class="small ghost" id="modeOrtho">正投影表示</button>
     <span id="modeStatus" style="color:#9f9;">現在: パース</span>
   </div>
-  <div class="row"><label>正投影スケール(px/m)</label><input type="number" id="orthoScale" value="3" step="0.5"></div>
+  <div class="row"><label>正投影スケール(px/m)</label><input type="number" id="orthoScale" value="1" step="0.25"></div>
 
   <h2>キャリブレーション</h2>
   <div class="calibRow">
@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.8';
+  const APP_VERSION = 'v1.9';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -202,7 +202,7 @@
 
   let params = {
     halfAngle: 60, distA: 25, distC: 150, hLow: 0, hHigh: 60,
-    eyeHeight: 1.5, hfov: 65, orthoScale: 3
+    eyeHeight: 1.5, hfov: 65, orthoScale: 1
   };
   const ids = ['halfAngle','distA','distC','hLow','hHigh','eyeHeight','hfov','orthoScale'];
   ids.forEach(id=>{
