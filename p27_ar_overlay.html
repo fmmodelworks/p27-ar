@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v2.0';
+  const APP_VERSION = 'v2.1';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -489,15 +489,17 @@
 
     if (panel.classList.contains('open')) {
       const F = toBox(camF), R = toBox(camR), U = toBox(camU);
+      const pp0 = project(0,0,zLow);
       const pp1 = project(P1[0],P1[1],P1[2]);
       const pp2 = project(P2[0],P2[1],P2[2]);
       const pp3 = project(P3[0],P3[1],P3[2]);
       const fmt = (p)=> p && p.visible ? ('x=' + p.x.toFixed(0) + ' y=' + p.y.toFixed(0)) : '画面外';
       document.getElementById('debugProj').textContent =
+        'mode=' + projMode + ' orthoScale=' + params.orthoScale + '\n' +
         'F=[' + F.map(v=>v.toFixed(2)).join(',') + ']\n' +
         'R=[' + R.map(v=>v.toFixed(2)).join(',') + ']\n' +
         'U=[' + U.map(v=>v.toFixed(2)).join(',') + ']\n' +
-        'P1 ' + fmt(pp1) + '  P2 ' + fmt(pp2) + '  P3 ' + fmt(pp3) +
+        'P0 ' + fmt(pp0) + '  P1 ' + fmt(pp1) + '  P2 ' + fmt(pp2) + '  P3 ' + fmt(pp3) +
         '\ncanvas ' + canvas.width + 'x' + canvas.height;
     }
   }
