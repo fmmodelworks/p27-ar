@@ -112,9 +112,9 @@
   <div id="debugProj" style="font-size:10px; color:#8cf; white-space:pre-line;"></div>
   <h2>HELP(点・線の定義)</h2>
   <div style="font-size:11px; line-height:1.6; color:#ddd;">
-    <strong>座標系</strong>: パイロット立ち位置=原点(0,0)。+Y=奥行き(前方)、+X=右、-X=左、+Z=高さ<br><br>
+    <strong>座標系</strong>: パイロット立ち位置=原点(0,0)。+Y=奥行き(前方)、+X=右、-X=左、+Z=高さ<br>
+    ※P0(原点・足元)はマーカー非表示(真上を向いた際に不安定なため)。線の起点としては使用<br><br>
     <strong>点</strong><br>
-    P0 (0, 0, 0) 足元<br>
     P1 (0, 150, 0)<br>
     P2 (259.8, 150, 0) — 原点から見て右60度<br>
     P3 (-259.8, 150, 0) — 原点から見て左60度<br>
@@ -173,7 +173,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.2';
+  const APP_VERSION = 'v1.3';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -462,7 +462,6 @@
       ctx.fillText(label, proj.x + radius + 4, proj.y - radius - 2);
     }
 
-    drawMarker(P0, '#ffffff', 'P0 (足元)');
     drawMarker(P1, '#0a84ff', 'P1 (0,150)');
     drawMarker(P2, '#ff3b30', 'P2 (' + P2[0].toFixed(0) + ',150)');
     drawMarker(P3, '#30d158', 'P3 (' + P3[0].toFixed(0) + ',150)');
