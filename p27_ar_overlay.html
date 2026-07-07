@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.5';
+  const APP_VERSION = 'v1.7';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -370,14 +370,6 @@
   // project a box-frame point (x=right, y=forward, z=up, origin=pilot stand at ground)
   // to screen pixel coords using true perspective projection. returns {x,y,visible}
   function project(px, py, pz){
-    if (projMode === 'orthographic') {
-      // fixed top-down (bird's-eye) view, independent of device tilt/roll —
-      // box +Y (forward) maps to screen-up, box +X (right) maps to screen-right
-      const s = params.orthoScale;
-      const w = canvas.width, h = canvas.height;
-      return { x: w/2 + px*s, y: h/2 - py*s, visible: true, zc: 100 };
-    }
-
     const F = toBox(camF), R = toBox(camR), U = toBox(camU);
     const eyeZ = params.eyeHeight;
     const vx = px, vy = py, vz = pz - eyeZ;
@@ -389,6 +381,13 @@
     const yc = vx*U[0] + vy*U[1] + vz*U[2];
 
     const w = canvas.width, h = canvas.height;
+
+    if (projMode === 'orthographic') {
+      // same camera-relative axes as perspective, but no distance-based shrinkage
+      const s = params.orthoScale;
+      return { x: w/2 + xc*s, y: h/2 - yc*s, visible: true, zc: zc };
+    }
+
     const f = (w/2) / Math.tan(params.hfov * Math.PI/180 / 2);
     const sx = (xc/zc) * f;
     const sy = -(yc/zc) * f;
@@ -622,14 +621,8 @@
   async function beginApp(useCamera){
     statusEl.textContent = '';
     if (useCamera) {
-      try {
-        await startCamera();
-      } catch(err){
-        statusEl.textContent = 'カメラ起動失敗: ' + err.message;
-        return;
-      }
-
-      // request device orientation permission on iOS 13+
+      // request device orientation permission FIRST, synchronously within the click
+      // handler's user-gesture context (iOS revokes gesture status after an await)
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
@@ -642,6 +635,13 @@
           statusEl.textContent = 'センサー許可エラー: ' + err.message;
           return;
         }
+      }
+
+      try {
+        await startCamera();
+      } catch(err){
+        statusEl.textContent = 'カメラ起動失敗: ' + err.message;
+        return;
       }
 
       window.addEventListener('deviceorientationabsolute', handleOrientationAbsolute, true);
