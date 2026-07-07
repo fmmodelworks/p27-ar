@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v2.1';
+  const APP_VERSION = 'v2.2';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -383,8 +383,9 @@
     const w = canvas.width, h = canvas.height;
 
     if (projMode === 'orthographic') {
-      // exactly the same camera tracking as perspective (full tilt/roll/heading),
-      // just without the distance-based convergence (no divide by zc)
+      // same camera-relative tracking (heading/tilt/roll) as perspective;
+      // the only difference is no divide-by-depth, so Y-direction (depth) lines
+      // don't converge the way they do in perspective.
       const s = params.orthoScale;
       return { x: w/2 + xc*s, y: h/2 - yc*s, visible: true, zc: zc };
     }
