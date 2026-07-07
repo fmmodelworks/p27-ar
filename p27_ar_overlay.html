@@ -180,7 +180,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.9';
+  const APP_VERSION = 'v2.0';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -383,15 +383,10 @@
     const w = canvas.width, h = canvas.height;
 
     if (projMode === 'orthographic') {
-      // rotate by current heading only (ignore tilt/roll) so the view pans left/right
-      // as you turn, but never wobbles up/down — the origin (P0) stays fixed at center.
-      const Fbox = toBox(camF);
-      const a = Math.atan2(Fbox[0], Fbox[1]); // current relative heading, box-frame bearing
-      const ca = Math.cos(a), sa = Math.sin(a);
-      const rx = px*ca - py*sa;
-      const ry = px*sa + py*ca;
+      // exactly the same camera tracking as perspective (full tilt/roll/heading),
+      // just without the distance-based convergence (no divide by zc)
       const s = params.orthoScale;
-      return { x: w/2 + rx*s, y: h/2 - ry*s, visible: true, zc: zc };
+      return { x: w/2 + xc*s, y: h/2 - yc*s, visible: true, zc: zc };
     }
 
     const f = (w/2) / Math.tan(params.hfov * Math.PI/180 / 2);
