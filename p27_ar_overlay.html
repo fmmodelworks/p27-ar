@@ -140,14 +140,6 @@
   <div id="debugLine">センサー受信: 待機中...</div>
   <div id="debugProj" style="font-size:10px; color:#8cf; white-space:pre-line;"></div>
 
-  <h2>表示モード</h2>
-  <div class="calibRow">
-    <button class="small" id="modePerspective">パース表示</button>
-    <button class="small ghost" id="modeOrtho">正投影表示</button>
-    <span id="modeStatus" style="color:#9f9;">現在: パース</span>
-  </div>
-  <div class="row"><label>正投影スケール(px/m)</label><input type="number" id="orthoScale" value="1" step="0.25"></div>
-
   <h2>キャリブレーション</h2>
   <div class="calibRow">
     <button id="calibBtn">現在の向き = センターライン</button>
@@ -170,6 +162,8 @@
   <h2>カメラ・その他</h2>
   <div class="row"><label>目の高さ (m)</label><input type="number" id="eyeHeight" value="1.5" step="0.1"></div>
   <div class="row"><label>水平画角 目安(°)</label><input type="number" id="hfov" value="65" step="1"></div>
+  <div class="row"><label>垂直収束抑制(0-1、1=通常)</label><input type="number" id="vertDamp" value="1" step="0.1" min="0" max="1"></div>
+  <div class="row"><label>収束抑制の基準距離(m)</label><input type="number" id="refDepth" value="150" step="10"></div>
 
   <div class="legend">
     <span><i class="swatch" style="background:#0a84ff;"></i>P0→P1 (青)</span>
@@ -182,7 +176,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v2.5';
+  const APP_VERSION = 'v3.2';
   const APP_DATE = '2026-07-05';
   document.addEventListener('DOMContentLoaded', ()=>{
     const vi = document.getElementById('versionInfo');
@@ -204,9 +198,9 @@
 
   let params = {
     halfAngle: 60, distA: 25, distC: 150, hLow: 0, hHigh: 60,
-    eyeHeight: 1.5, hfov: 65, orthoScale: 1
+    eyeHeight: 1.5, hfov: 65, vertDamp: 1, refDepth: 150
   };
-  const ids = ['halfAngle','distA','distC','hLow','hHigh','eyeHeight','hfov','orthoScale'];
+  const ids = ['halfAngle','distA','distC','hLow','hHigh','eyeHeight','hfov','vertDamp','refDepth'];
   ids.forEach(id=>{
     const el = document.getElementById(id);
     el.addEventListener('input', ()=>{ params[id] = parseFloat(el.value) || 0; });
@@ -229,15 +223,6 @@
   });
   document.getElementById('helpClose').addEventListener('click', ()=>{
     document.getElementById('helpModal').style.display = 'none';
-  });
-
-  document.getElementById('modePerspective').addEventListener('click', ()=>{
-    projMode = 'perspective';
-    document.getElementById('modeStatus').textContent = '現在: パース';
-  });
-  document.getElementById('modeOrtho').addEventListener('click', ()=>{
-    projMode = 'orthographic';
-    document.getElementById('modeStatus').textContent = '現在: 正投影';
   });
 
   function resize(){
@@ -358,7 +343,6 @@
   let camF = [0,1,0], camR = [1,0,0], camU = [0,0,1];
   // calibration reference basis: captured at the moment of calibration, defines box +Y/+X/+Z
   let F0 = [0,1,0], R0 = [1,0,0], U0 = [0,0,1];
-  let projMode = 'perspective'; // 'perspective' or 'orthographic'
 
   // convert a world-frame vector into box-frame using the calibrated reference basis
   function toBox(v){
@@ -383,18 +367,15 @@
     const yc = vx*U[0] + vy*U[1] + vz*U[2];
 
     const w = canvas.width, h = canvas.height;
-
-    if (projMode === 'orthographic') {
-      // same camera-relative tracking (heading/tilt/roll) as perspective;
-      // the only difference is no divide-by-depth, so Y-direction (depth) lines
-      // don't converge the way they do in perspective.
-      const s = params.orthoScale;
-      return { x: w/2 + xc*s, y: h/2 - yc*s, visible: true, zc: zc };
-    }
-
     const f = (w/2) / Math.tan(params.hfov * Math.PI/180 / 2);
     const sx = (xc/zc) * f;
-    const sy = -(yc/zc) * f;
+
+    // vertical (height) convergence damping: blend the depth used for the
+    // vertical divide toward a fixed reference depth, so lines climbing into
+    // the sky don't converge toward screen-center as strongly.
+    const damp = params.vertDamp;
+    const zcY = zc * damp + params.refDepth * (1 - damp);
+    const sy = -(yc/zcY) * f;
 
     return { x: w/2 + sx, y: h/2 + sy, visible: true, zc: zc };
   }
@@ -404,7 +385,7 @@
     const b = project(p2[0], p2[1], p2[2]);
     if (!a || !b || !a.visible || !b.visible) return;
     const reqWidth = width || 2;
-    const w = projMode === 'orthographic' ? reqWidth : Math.max(reqWidth * 0.3, Math.min(reqWidth, 300 / ((a.zc + b.zc) / 2)));
+    const w = Math.max(reqWidth * 0.3, Math.min(reqWidth, 300 / ((a.zc + b.zc) / 2)));
     ctx.strokeStyle = color;
     ctx.lineWidth = w;
     ctx.beginPath();
@@ -439,23 +420,9 @@
     const P2 = [150*tan60, 150, zLow];
     const P3 = [-150*tan60, 150, zLow];
 
-    // trim the near-P0 portion of a line (P0 wobbles a lot on screen since it's
-    // only 1.5m from the camera; skip the first few meters to hide that jitter)
-    function trimNearP0(target, minDist){
-      const dist = Math.hypot(target[0]-P0[0], target[1]-P0[1], target[2]-P0[2]);
-      if (dist <= minDist) return P0;
-      const t = minDist / dist;
-      return [
-        P0[0] + (target[0]-P0[0])*t,
-        P0[1] + (target[1]-P0[1])*t,
-        P0[2] + (target[2]-P0[2])*t
-      ];
-    }
-    const NEAR_P0_TRIM = 30; // meters
-
-    drawSegmentedLine(trimNearP0(P1, NEAR_P0_TRIM), P1, SEG, '#0a84ff', 2);
-    drawSegmentedLine(trimNearP0(P2, NEAR_P0_TRIM), P2, SEG, '#ffffff', 2);
-    drawSegmentedLine(trimNearP0(P3, NEAR_P0_TRIM), P3, SEG, '#ffffff', 2);
+    drawSegmentedLine(P0, P1, SEG, '#0a84ff', 2);
+    drawSegmentedLine(P0, P2, SEG, '#ffffff', 2);
+    drawSegmentedLine(P0, P3, SEG, '#ffffff', 2);
     drawSegmentedLine(P3, P1, SEG, '#ffffff', 2);
     drawSegmentedLine(P1, P2, SEG, '#ffffff', 2);
 
@@ -469,7 +436,7 @@
 
     drawSegmentedLine(P4, [-300,150,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P4, [300,150,300], SEG, '#ff3b30', 2);
-    drawSegmentedLine(trimNearP0([0,0,300], NEAR_P0_TRIM), [0,0,300], SEG, '#ff3b30', 2);
+    drawSegmentedLine(P0, [0,0,300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P1, [P1[0],P1[1],300], SEG, '#ff3b30', 2);
     drawSegmentedLine(P2, [P2[0],P2[1],300], SEG, '#ffffff', 6);
     drawSegmentedLine(P3, [P3[0],P3[1],300], SEG, '#ffffff', 6);
@@ -485,7 +452,7 @@
       const proj = project(p[0], p[1], p[2]);
       if (!proj || !proj.visible) return;
       // scale marker size with distance so far points look appropriately smaller/further
-      const radius = projMode === 'orthographic' ? 6 : Math.max(4, Math.min(28, 600 / proj.zc));
+      const radius = Math.max(4, Math.min(28, 600 / proj.zc));
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(proj.x, proj.y, radius, 0, Math.PI*2);
@@ -512,7 +479,6 @@
       const pp3 = project(P3[0],P3[1],P3[2]);
       const fmt = (p)=> p && p.visible ? ('x=' + p.x.toFixed(0) + ' y=' + p.y.toFixed(0)) : '画面外';
       document.getElementById('debugProj').textContent =
-        'mode=' + projMode + ' orthoScale=' + params.orthoScale + '\n' +
         'F=[' + F.map(v=>v.toFixed(2)).join(',') + ']\n' +
         'R=[' + R.map(v=>v.toFixed(2)).join(',') + ']\n' +
         'U=[' + U.map(v=>v.toFixed(2)).join(',') + ']\n' +
