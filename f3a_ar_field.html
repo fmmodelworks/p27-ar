@@ -118,13 +118,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div class="chkrow"><input type="checkbox" id="ckHeight" checked><span>高度目安(実寸換算)</span></div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.1</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.2</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.1";
+const APP_VERSION="v1.2";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -172,56 +172,45 @@ function startOrientation(){
     if(e.webkitCompassHeading!=null){ heading=e.webkitCompassHeading; }
     else { heading=(360-alpha)%360; } // Android absolute
     S.hasOrient=true;
-    // 端末→世界の回転(ZXY順: alpha,beta,gamma)から視線方向を算出
+    // 端末→世界の回転行列(W3C ZXY順) 列=端末各軸の世界ベクトル
     const a=alpha*D2R,b=beta*D2R,g=gamma*D2R;
-    // 回転行列 R = Rz(a)Rx(b)Ry(g)
     const cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b),sB=Math.sin(b),cG=Math.cos(g),sG=Math.sin(g);
-    // 端末座標: 画面奥方向 = (0,0,-1)。世界座標(東x,北y,上z)へ
-    // R行列成分(W3C仕様 ZXY)
     const m=[
       cA*cG - sA*sB*sG, -sA*cB, cA*sG + sA*sB*cG,
       sA*cG + cA*sB*sG,  cA*cB, sA*sG - cA*sB*cG,
       -cB*sG,            sB,    cB*cG
     ];
-    // 背面カメラ視線 = 端末-z軸 → 世界ベクトル
+    S.m=m;
+    // 背面カメラ視線 = 端末-z軸 → 世界ベクトル(HUD表示用)
     const vx=-m[2], vy=-m[5], vz=-m[8];
-    // 方位(北0°時計回り)・仰角
     let az=Math.atan2(vx,vy)*R2D; if(az<0)az+=360;
-    const el=Math.asin(Math.max(-1,Math.min(1,vz)))*R2D;
-    // 画面の向き(縦/横)角度
-    const sc=(screen.orientation&&typeof screen.orientation.angle==="number")?screen.orientation.angle:(window.orientation||0);
-    const t=sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
-    // 端末x軸(m[0],m[3],m[6])と端末y軸(m[1],m[4],m[7])を画面軸へ回転
-    const rX=m[0]*cT+m[1]*sT, rY=m[3]*cT+m[4]*sT, rZ=m[6]*cT+m[7]*sT;   // 画面右
-    const uX=-m[0]*sT+m[1]*cT, uY=-m[3]*sT+m[4]*cT, uZ=-m[6]*sT+m[7]*cT; // 画面上
-    S.rollScreen=Math.atan2(-rZ,uZ); // 画面の傾き
-    S.az=az; S.el=el;
+    S.az=az;
+    S.el=Math.asin(Math.max(-1,Math.min(1,vz)))*R2D;
   },true);
 }
 
 // ---- 投影 ----
-// 世界方位角az°・仰角el°の点を画面座標へ(ピンホール)
+// 世界方位角az°・仰角el°の点を画面座標へ(回転行列で世界→端末→画面)
 function project(azDeg, elDeg){
-  if(S.centerAz==null || !S.hasOrient) return null;
+  if(S.centerAz==null || !S.hasOrient || !S.m) return null;
   const W=ovl.width,H=ovl.height;
-  const vf=S.vfov*D2R;
-  const f=(H/2)/Math.tan(vf/2); // 焦点距離(px)
-  // カメラ視線を基準にした相対角
-  const dAz=norm180(azDeg - S.az)*D2R;
-  const camEl=S.el*D2R, ptEl=elDeg*D2R;
-  // 対象方向ベクトル(カメラ方位基準)
-  const x=Math.sin(dAz)*Math.cos(ptEl);
-  const y=Math.cos(dAz)*Math.cos(ptEl);
-  const z=Math.sin(ptEl);
-  // カメラ仰角分ピッチ回転
-  const cy=y*Math.cos(camEl)+z*Math.sin(camEl);
-  const cz=-y*Math.sin(camEl)+z*Math.cos(camEl);
-  if(cy<=0.02) return null; // 後方
-  let px=f*x/cy, py=-f*cz/cy;
-  // 画面ロール補正
-  const r=S.rollScreen||0;
-  const rp={x:px*Math.cos(r)-py*Math.sin(r), y:px*Math.sin(r)+py*Math.cos(r)};
-  return {x:W/2+rp.x, y:H/2+rp.y};
+  const f=(Math.min(W,H)/2)/Math.tan(S.vfov*D2R/2); // 焦点距離(短辺基準)
+  // 対象方向の世界単位ベクトル(x東,y北,z上)
+  const A=azDeg*D2R,E=elDeg*D2R;
+  const wx=Math.sin(A)*Math.cos(E), wy=Math.cos(A)*Math.cos(E), wz=Math.sin(E);
+  // 世界→端末座標(mの転置=列との内積)
+  const m=S.m;
+  const dx=m[0]*wx+m[3]*wy+m[6]*wz;
+  const dy=m[1]*wx+m[4]*wy+m[7]*wz;
+  const dz=m[2]*wx+m[5]*wy+m[8]*wz;
+  const fwd=-dz;               // 背面カメラは端末-z方向
+  if(fwd<=0.02) return null;   // 後方は非表示
+  // 画面向き(縦/横)補正:画面軸=端末軸を-θ回転
+  const sc=(screen.orientation&&typeof screen.orientation.angle==="number")?screen.orientation.angle:(window.orientation||0);
+  const t=sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
+  const sx= dx*cT - dy*sT;     // 画面右成分
+  const sy= dx*sT + dy*cT;     // 画面上成分
+  return {x:W/2 + f*sx/fwd, y:H/2 - f*sy/fwd};
 }
 function norm180(d){d=((d+180)%360+360)%360-180;return d;}
 
