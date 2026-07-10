@@ -120,15 +120,22 @@ input[type=range]{width:100%;accent-color:#0fbf74}
     <div class="row">
       <label>機種別補正</label>
       <div class="chkrow"><input type="checkbox" id="ckFlip"><span>画面回転補正を反転(横向きで表示が90°ずれる場合)</span></div>
+      <label style="margin-top:8px">表示回転オフセット(縦横共に一定角ずれる場合)<span class="val" id="vOfs">0°</span></label>
+      <div class="seg" id="segOfs">
+        <button data-o="0" class="on">0°</button>
+        <button data-o="90">+90°</button>
+        <button data-o="180">180°</button>
+        <button data-o="270">-90°</button>
+      </div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.3</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.4</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.3";
+const APP_VERSION="v1.4";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -209,9 +216,9 @@ function project(azDeg, elDeg){
   const dz=m[2]*wx+m[5]*wy+m[8]*wz;
   const fwd=-dz;               // 背面カメラは端末-z方向
   if(fwd<=0.02) return null;   // 後方は非表示
-  // 画面向き(縦/横)補正:画面軸=端末軸をθ回転
+  // 画面向き(縦/横)補正 + 機種固有オフセット
   const sc=(screen.orientation&&typeof screen.orientation.angle==="number")?screen.orientation.angle:(window.orientation||0);
-  const t=(S.flipRot?-1:1)*sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
+  const t=((S.flipRot?-1:1)*sc + (S.rotOfs||0))*D2R,cT=Math.cos(t),sT=Math.sin(t);
   const sx= dx*cT + dy*sT;     // 画面右成分
   const sy=-dx*sT + dy*cT;     // 画面上成分
   return {x:W/2 + f*sx/fwd, y:H/2 - f*sy/fwd};
@@ -336,15 +343,39 @@ $("segDist").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   S.dist=+b.dataset.d;
   $("segDist").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
-  $("vDist").textContent=S.dist+" m";$("hDist").textContent=S.dist+"m";
+  $("vDist").textContent=S.dist+" m";$("hDist").textContent=S.dist+"m";saveCal();
 });
-$("rFov").addEventListener("input",e=>{S.vfov=+e.target.value;$("vFov").textContent=S.vfov+"°";});
+$("rFov").addEventListener("input",e=>{S.vfov=+e.target.value;$("vFov").textContent=S.vfov+"°";saveCal();});
 $("rTrim").addEventListener("input",e=>{S.trim=+e.target.value;$("vTrim").textContent=(+e.target.value).toFixed(1)+"°";});
 for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"]]){
   $(id).addEventListener("change",e=>S.show[key]=e.target.checked);
 }
 S.flipRot=false;
-$("ckFlip").addEventListener("change",e=>S.flipRot=e.target.checked);
+$("ckFlip").addEventListener("change",e=>{S.flipRot=e.target.checked;saveCal();});
+S.rotOfs=0;
+$("segOfs").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  S.rotOfs=+b.dataset.o;
+  $("segOfs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  $("vOfs").textContent=b.textContent;
+  saveCal();
+});
+// 較正値の保存/復元
+function saveCal(){
+  try{localStorage.setItem("f3a_ar_cal",JSON.stringify({rotOfs:S.rotOfs,flipRot:S.flipRot,vfov:S.vfov,dist:S.dist}));}catch(e){}
+}
+(function loadCal(){
+  try{
+    const c=JSON.parse(localStorage.getItem("f3a_ar_cal")||"{}");
+    if(c.rotOfs!=null){S.rotOfs=c.rotOfs;
+      $("segOfs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",+x.dataset.o===c.rotOfs));
+      const on=$("segOfs").querySelector("button.on");if(on)$("vOfs").textContent=on.textContent;}
+    if(c.flipRot){S.flipRot=true;$("ckFlip").checked=true;}
+    if(c.vfov){S.vfov=c.vfov;$("rFov").value=c.vfov;$("vFov").textContent=c.vfov+"°";}
+    if(c.dist){S.dist=c.dist;$("hDist").textContent=c.dist+"m";$("vDist").textContent=c.dist+" m";
+      $("segDist").querySelectorAll("button").forEach(x=>x.classList.toggle("on",+x.dataset.d===c.dist));}
+  }catch(e){}
+})();
 // 画面スリープ防止
 let wl=null;
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&"wakeLock" in navigator){try{wl=await navigator.wakeLock.request("screen");}catch(e){}}});
