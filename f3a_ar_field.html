@@ -50,9 +50,30 @@ input[type=range]{width:100%;accent-color:#0fbf74}
 
 <div id="start">
   <h1>F3A AR FIELD</h1>
-  <p>カメラと姿勢センサーを使い、P-27演技ボックス(左右60°・仰角基準線)を実映像に重ねて表示します。<br>センターに正対してから「センター設定」を押してください。</p>
+  <div id="ver" style="font-size:12px;color:#5f8a72;letter-spacing:.15em"></div>
+  <p>カメラと姿勢センサーを使い、P-27演技ボックス(左右60°・仰角基準線)を実映像に重ねて表示します。<br>縦向き・横向きどちらでも使用できます。</p>
   <button class="primary" id="btnStart" style="font-size:16px;padding:14px 28px">開始(カメラ・センサー許可)</button>
+  <button id="btnHelpStart">使い方(HELP)</button>
   <div id="err"></div>
+</div>
+
+<div id="help" style="position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:16px">
+  <div class="panel">
+    <h2>使い方</h2>
+    <div style="font-size:13px;line-height:1.8;color:#cfe8da">
+      <p style="color:#00ff88;font-weight:600;margin-top:8px">1. 準備</p>
+      <p>HTTPSで本ページを開き、「開始」でカメラとモーションセンサーを許可します。縦・横どちらの向きでも使用できます(途中で持ち替えてもOK)。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">2. センター設定</p>
+      <p>画面中央の照準を演技センター(パイロン等の目印)に合わせ、「センター設定」を押します。以後、その方位を基準にボックスが表示されます。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">3. 表示の見方</p>
+      <p>緑=ボックス境界(L60°/R60°/上限60°)、黄=センターライン、水色=仰角基準線(15/30/45°)、白破線=水平線。右端の白ティックは飛行ライン距離での高度目安(50〜200m)です。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">4. 較正</p>
+      <p>設定⚙でカメラFOVを調整し、既知の目標物とライン幅が一致するよう一度合わせてください。方位がずれた場合は「方位微調整」または再センター設定で補正します。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">注意</p>
+      <p>方位は磁気コンパスに依存します。金属構造物・車両の近くでは誤差が出ます。屋外で日差しが強い場合は「高輝度」モードをご利用ください。</p>
+    </div>
+    <button class="primary" style="width:100%;margin-top:12px" id="btnHelpClose">閉じる</button>
+  </div>
 </div>
 
 <video id="cam" autoplay playsinline muted></video>
@@ -66,6 +87,7 @@ input[type=range]{width:100%;accent-color:#0fbf74}
 <div id="btns" style="display:none">
   <button class="primary" id="btnCenter">センター設定</button>
   <button id="btnHC">高輝度</button>
+  <button id="btnHelp">?</button>
   <button id="btnSet">設定 ⚙</button>
 </div>
 
@@ -96,11 +118,14 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div class="chkrow"><input type="checkbox" id="ckHeight" checked><span>高度目安(実寸換算)</span></div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.1</div>
   </div>
 </div>
 
 <script>
 "use strict";
+const APP_VERSION="v1.1";
+document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
 const D2R=Math.PI/180, R2D=180/Math.PI;
@@ -163,14 +188,13 @@ function startOrientation(){
     // 方位(北0°時計回り)・仰角
     let az=Math.atan2(vx,vy)*R2D; if(az<0)az+=360;
     const el=Math.asin(Math.max(-1,Math.min(1,vz)))*R2D;
-    // 画面ロール(世界上方向の画面内傾き)
-    // 端末x軸(画面右)の世界ベクトル
-    const rx=m[0],ry=m[3],rz=m[6];
-    // 視線に直交する「上」との比較でロール算出
-    const roll=Math.atan2(rz, Math.hypot(rx,ry)*Math.sign(rx*(-vy)+ry*vx || 1e-9));
-    // 簡易・安定版: 端末y軸(画面上)の世界z成分から
-    const ux=m[1],uy=m[4],uz=m[7];
-    S.rollScreen=Math.atan2(-rz,uz); // 画面の傾き
+    // 画面の向き(縦/横)角度
+    const sc=(screen.orientation&&typeof screen.orientation.angle==="number")?screen.orientation.angle:(window.orientation||0);
+    const t=sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
+    // 端末x軸(m[0],m[3],m[6])と端末y軸(m[1],m[4],m[7])を画面軸へ回転
+    const rX=m[0]*cT+m[1]*sT, rY=m[3]*cT+m[4]*sT, rZ=m[6]*cT+m[7]*sT;   // 画面右
+    const uX=-m[0]*sT+m[1]*cT, uY=-m[3]*sT+m[4]*cT, uZ=-m[6]*sT+m[7]*cT; // 画面上
+    S.rollScreen=Math.atan2(-rZ,uZ); // 画面の傾き
     S.az=az; S.el=el;
   },true);
 }
@@ -311,6 +335,10 @@ $("btnCenter").addEventListener("click",()=>{
 $("btnHC").addEventListener("click",e=>{S.hc=!S.hc;e.target.textContent=S.hc?"通常":"高輝度";});
 $("btnSet").addEventListener("click",()=>$("settings").classList.add("open"));
 $("btnClose").addEventListener("click",()=>$("settings").classList.remove("open"));
+const openHelp=()=>$("help").style.display="flex";
+$("btnHelp").addEventListener("click",openHelp);
+$("btnHelpStart").addEventListener("click",openHelp);
+$("btnHelpClose").addEventListener("click",()=>$("help").style.display="none");
 $("segDist").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   S.dist=+b.dataset.d;
