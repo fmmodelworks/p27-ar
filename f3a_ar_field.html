@@ -136,13 +136,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       </div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.6</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v2.0</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.6";
+const APP_VERSION="v2.0";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -335,51 +335,120 @@ function draw(){
   if(S.mIdx>=0) drawManeuver(lw);
 }
 // ---- P-27 演技図形 ----
-// 図形は飛行ライン面の実寸座標 {s:横[m], h:高さ[m]} の列。dir=+1:右向き進入, -1:左向き進入
-const H0=60, R=45; // 基準高度・基準半径[m]
-function arcPts(cs,ch,r,a0,a1,n){n=n||28;const o=[];for(let i=0;i<=n;i++){const a=(a0+(a1-a0)*i/n)*D2R;o.push({s:cs+r*Math.cos(a),h:ch+r*Math.sin(a)});}return o;}
-function ln(s0,h0,s1,h1,n){n=n||16;const o=[];for(let i=0;i<=n;i++)o.push({s:s0+(s1-s0)*i/n,h:h0+(h1-h0)*i/n});return o;}
+// 図形は飛行ライン面の実寸座標 {s:横[m], h:高さ[m]}。実線=正立, 破線=背面(Aresti準拠)
+// dir=+1:右向き進入, -1:左向き進入。番号順に進入方向は自動で交互反転
+const H0=60;
+function AP(cs,ch,r,a0,a1,n){n=n||20;const o=[];for(let i=0;i<=n;i++){const a=(a0+(a1-a0)*i/n)*D2R;o.push({s:cs+r*Math.cos(a),h:ch+r*Math.sin(a)});}return o;}
+function LP(s0,h0,s1,h1,n){n=n||12;const o=[];for(let i=0;i<=n;i++)o.push({s:s0+(s1-s0)*i/n,h:h0+(h1-h0)*i/n});return o;}
+function Sg(p,dashed){return {p:p,d:!!dashed};}
 const MANEUVERS=[
- {name:"ループ",anchor:"c",path:()=>[arcPts(0,H0+R,R,-90,270)]},
- {name:"スクエアループ",anchor:"c",path:()=>[ln(-70,H0,70,H0),ln(70,H0,70,H0+140),ln(70,H0+140,-70,H0+140),ln(-70,H0+140,-70,H0)]},
- {name:"ハーフスクエアループ",anchor:"e",path:()=>[ln(-60,H0,0,H0),arcPts(0,H0+30,30,-90,0,14),ln(30,H0+30,30,H0+140)]},
- {name:"ストールターン",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+25,25,-90,0,12),ln(25,H0+25,25,H0+150),ln(25,H0+150,45,H0+150),ln(45,H0+150,45,H0+25),arcPts(70,H0+25,25,180,270,12)]},
- {name:"ロール(水平)",anchor:"c",path:()=>[ln(-90,H0+60,90,H0+60)],ticks:true},
- {name:"45°アップロール",anchor:"c",path:()=>[ln(-80,H0,80,H0+160)],ticks:true},
- {name:"45°ダウンロール",anchor:"c",path:()=>[ln(-80,H0+160,80,H0)],ticks:true},
- {name:"ハンプティバンプ",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+25,25,-90,0,12),ln(25,H0+25,25,H0+130),arcPts(45,H0+130,20,180,0,16),ln(65,H0+130,65,H0+25),arcPts(90,H0+25,25,180,270,12)]},
- {name:"トップハット",anchor:"c",path:()=>[ln(-90,H0,-50,H0),arcPts(-50,H0+25,25,-90,0,12),ln(-25,H0+25,-25,H0+110),arcPts(0,H0+110,25,180,90,12),ln(0,H0+135,0,H0+135),ln(0,H0+135,25,H0+135),arcPts(25,H0+110,25,90,0,12),ln(50,H0+110,50,H0+25),arcPts(75,H0+25,25,180,270,12),ln(75,H0,90,H0)]},
- {name:"ハーフエイト(上半ループ)",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+R,R,-90,90),ln(0,H0+2*R,-70,H0+2*R)]},
- {name:"アワーグラス",anchor:"c",path:()=>[ln(-80,H0,55,H0+150),arcPts(35,H0+163,24,40,140,14),ln(15,H0+150,-55,H0+150),ln(-55,H0+150,80,H0)]},
- {name:"スピン",anchor:"c",path:()=>{const p=[ln(-60,H0+150,0,H0+150,8)];const z=[];for(let i=0;i<=40;i++){const t=i/40;z.push({s:Math.sin(t*Math.PI*6)*8,h:H0+150-t*120});}p.push(z);p.push(ln(0,H0+30,60,H0+30,8));return p;}},
+ {name:"1. 垂直上昇1/4×2・丸屋根反転",end:true,path:[
+   Sg(LP(-100,H0,-25,H0)),Sg(AP(-25,H0+25,25,-90,0,10)),Sg(LP(0,H0+25,0,H0+150)),
+   Sg(AP(-25,H0+150,25,0,180,16)),Sg(LP(-50,H0+150,-50,H0+40),1),Sg(AP(-75,H0+40,25,0,-90,10),1),Sg(LP(-75,H0+15,-160,H0+15),1)],
+  marks:[{s:0,h:H0+75,t:"¼"},{s:0,h:H0+115,t:"¼"}]},
+ {name:"2. 45°アップ・ティアドロップ",end:true,path:[
+   Sg(LP(-100,H0,-45,H0)),Sg(LP(-45,H0,25,H0+70)),
+   Sg(AP(4,H0+91,30,-45,215,26),1),Sg(LP(-21,H0+108,-45,H0+84),1),Sg(LP(-45,H0+84,-45,H0+84)),
+   Sg(LP(-45,H0+84,-140,H0+84),1)],
+  marks:[{s:-24,h:H0+21,t:"¼"},{s:0,h:H0+45,t:"¼"}]},
+ {name:"3. トライアングルループ(頂点下)",end:false,path:[
+   Sg(LP(-130,H0,0,H0)),Sg(LP(0,H0,75,H0+75)),
+   Sg(LP(75,H0+75,-75,H0+75)),Sg(LP(-75,H0+75,0,H0),1),Sg(LP(0,H0,130,H0),1)],
+  marks:[{s:20,h:H0+75,t:"¼"},{s:-20,h:H0+75,t:"¼"}]},
+ {name:"4. シャークトゥース(45°上昇→垂直降下)",end:true,path:[
+   Sg(LP(-120,H0,-70,H0),1),Sg(LP(-70,H0,30,H0+100),1),Sg(AP(48,H0+82,26,135,90,8),1),
+   Sg(LP(48,H0+108,48,H0+25)),Sg(AP(73,H0+25,25,180,270,10)),Sg(LP(73,H0,150,H0))],
+  marks:[{s:-20,h:H0+50,t:"¼"}]},
+ {name:"5. 水平ロールコンビ(¼¼・スナップ・¼¼)",end:false,path:[
+   Sg(LP(-130,H0+80,130,H0+80))],
+  marks:[{s:-80,h:H0+80,t:"¼"},{s:-45,h:H0+80,t:"¼"},{s:0,h:H0+80,t:"▲"},{s:45,h:H0+80,t:"¼"},{s:80,h:H0+80,t:"¼"}]},
+ {name:"6. ハーフスクエアループ",end:true,path:[
+   Sg(LP(-110,H0,-25,H0)),Sg(AP(-25,H0+25,25,-90,0,10)),Sg(LP(0,H0+25,0,H0+140)),
+   Sg(AP(-25,H0+140,25,0,90,10),1),Sg(LP(-25,H0+165,-140,H0+165),1)],
+  marks:[{s:0,h:H0+85,t:"½"}]},
+ {name:"7. ダイヤモンドループ",end:false,path:[
+   Sg(LP(-130,H0,0,H0),1),Sg(LP(0,H0,75,H0+75)),Sg(LP(75,H0+75,0,H0+150),1),
+   Sg(LP(0,H0+150,-75,H0+75),1),Sg(LP(-75,H0+75,0,H0)),Sg(LP(0,H0,130,H0))],
+  marks:[{s:38,h:H0+38,t:"¼"},{s:-38,h:H0+112,t:"¼"}]},
+ {name:"8. 45°ダウン・ラウンドターン",end:true,path:[
+   Sg(LP(-120,H0+150,-55,H0+150)),Sg(LP(-55,H0+150,-55,H0+120)),
+   Sg(LP(-55,H0+120,25,H0+40)),
+   Sg(AP(46,H0+61,30,225,-80,28),1),Sg(LP(51,H0+91,-30,H0+170),1),Sg(LP(-30,H0+170,-130,H0+170),1)],
+  marks:[{s:-15,h:H0+80,t:"½"}]},
+ {name:"9. 垂直上昇・段付き(スナップ)",end:false,path:[
+   Sg(LP(-110,H0,-25,H0)),Sg(AP(-25,H0+25,25,-90,0,10)),Sg(LP(0,H0+25,0,H0+70)),
+   Sg(LP(0,H0+70,14,H0+80)),Sg(LP(14,H0+80,0,H0+90)),Sg(LP(0,H0+90,14,H0+100)),Sg(LP(14,H0+100,0,H0+110)),
+   Sg(LP(0,H0+110,0,H0+150)),Sg(AP(-25,H0+150,25,0,90,10)),Sg(LP(-25,H0+175,-120,H0+175))],
+  marks:[{s:7,h:H0+90,t:"▲"}]},
+ {name:"10. ハーフスクエア(降下¼×2)",end:true,path:[
+   Sg(LP(-120,H0+165,-25,H0+165),1),Sg(AP(-25,H0+140,25,90,0,10),1),
+   Sg(LP(0,H0+140,0,H0+40)),Sg(AP(-25,H0+40,25,0,-90,10)),Sg(LP(-25,H0+15,-130,H0+15))],
+  marks:[{s:0,h:H0+110,t:"¼"},{s:0,h:H0+75,t:"¼"}]},
+ {name:"10opt. オプション(¼・¾)",end:true,path:[
+   Sg(LP(-120,H0+165,-25,H0+165),1),Sg(AP(-25,H0+140,25,90,0,10),1),
+   Sg(LP(0,H0+140,0,H0+40)),Sg(AP(-25,H0+40,25,0,-90,10)),Sg(LP(-25,H0+15,-130,H0+15))],
+  marks:[{s:0,h:H0+110,t:"¼"},{s:0,h:H0+75,t:"¾"}]},
+ {name:"11. 水平ローリングコンビ(⅛系)",end:false,path:[
+   Sg(LP(-130,H0+80,130,H0+80),1)],
+  marks:[{s:-90,h:H0+80,t:"⅛"},{s:-60,h:H0+80,t:"⅛"},{s:-30,h:H0+80,t:"¼"},{s:10,h:H0+80,t:"¼"},{s:45,h:H0+80,t:"⅛"},{s:75,h:H0+80,t:"⅛"}]},
+ {name:"12. 丸屋根・降下¼×2ターン",end:true,path:[
+   Sg(LP(-120,H0,-25,H0),1),Sg(AP(-25,H0+25,25,-90,0,10),1),Sg(LP(0,H0+25,0,H0+140),1),
+   Sg(AP(25,H0+140,25,180,0,16)),Sg(LP(50,H0+140,50,H0+40)),
+   Sg(AP(75,H0+40,25,180,270,10)),Sg(LP(75,H0+15,160,H0+15))],
+  marks:[{s:50,h:H0+110,t:"¼"},{s:50,h:H0+75,t:"¼"}]},
+ {name:"13. ボトムハンプティ(¼・¾)",end:false,path:[
+   Sg(LP(-120,H0+160,-30,H0+160)),Sg(LP(-30,H0+160,-30,H0+60)),
+   Sg(AP(0,H0+60,30,180,360,20),1),
+   Sg(LP(30,H0+60,30,H0+160)),Sg(LP(30,H0+160,120,H0+160))],
+  marks:[{s:-30,h:H0+130,t:"¾"},{s:-30,h:H0+85,t:"¼"},{s:30,h:H0+130,t:"¾"},{s:30,h:H0+85,t:"¼"}]},
+ {name:"14. ハーフダイヤモンド",end:true,path:[
+   Sg(LP(-110,H0,-35,H0),1),Sg(LP(-35,H0,35,H0+70),1),
+   Sg(LP(35,H0+70,-35,H0+140),1),Sg(LP(-35,H0+140,-140,H0+140),1)],
+  marks:[{s:0,h:H0+35,t:"½"},{s:0,h:H0+105,t:"½"}]},
+ {name:"15. スクエア・対角線(¼×2)",end:false,path:[
+   Sg(LP(-130,H0+130,-55,H0+130),1),Sg(LP(-55,H0+130,-55,H0+20)),
+   Sg(LP(-55,H0+20,55,H0+20)),Sg(LP(55,H0+20,55,H0+130)),
+   Sg(LP(-55,H0+130,55,H0+20),1),Sg(LP(55,H0+130,130,H0+130),1)],
+  marks:[{s:-25,h:H0+103,t:"¼"},{s:25,h:H0+48,t:"¼"}]},
+ {name:"16. Pループ(上部ループ→45°ダウン)",end:true,path:[
+   Sg(LP(-110,H0,-25,H0)),Sg(AP(-25,H0+25,25,-90,0,10)),Sg(LP(0,H0+25,0,H0+130)),
+   Sg(AP(-22,H0+130,22,0,300,26),1),
+   Sg(LP(-11,H0+111,60,H0+40),1),Sg(AP(78,H0+58,26,225,270,8),1),Sg(LP(78,H0+32,150,H0+32),1)],
+  marks:[{s:25,h:H0+78,t:"½"}]},
+ {name:"17. ローリングループ",end:false,path:[
+   Sg(LP(-130,H0+18,-40,H0+18)),Sg(AP(0,H0+83,65,-96,264,40)),Sg(LP(40,H0+18,130,H0+18),1)],
+  marks:[{s:46,h:H0+129,t:"|"},{s:-46,h:H0+129,t:"|"},{s:-46,h:H0+37,t:"|"},{s:46,h:H0+37,t:"|"}]},
 ];
 function drawManeuver(lw){
   const M=MANEUVERS[S.mIdx];if(!M)return;
   const col=S.hc?"#ff44ff":"#ee66ff";
-  const dir=S.mDir;
-  const ofs=(M.anchor==="e")?dir*S.dist*Math.tan(35*D2R):0; // 端演技はサイド寄りに配置
-  for(const segPts of M.path()){
-    const pts=segPts.map(q=>fieldPt(dir*q.s+ofs,q.h));
-    line(pts,col,lw*1.1);
-    if(M.ticks){ // ロール演技の回転マーク
-      const mid=segPts[Math.floor(segPts.length/2)];
-      const p=fieldPt(dir*mid.s+ofs,mid.h);
-      if(p){ctx.strokeStyle=col;ctx.lineWidth=lw*DPR();ctx.beginPath();
-        ctx.arc(p.x,p.y,14*DPR(),0,Math.PI*2);ctx.stroke();}
-    }
+  // 進入方向: 手動設定 × 番号の交互反転(P-27は演技ごとに向きが入れ替わる)
+  const dir=S.mDir*((S.mIdx%2===0)?1:-1);
+  const ofs=M.end?dir*S.dist*Math.tan(42*D2R):0; // 端演技はサイド寄り
+  for(const seg of M.path){
+    const pts=seg.p.map(q=>fieldPt(dir*q.s+ofs,q.h));
+    line(pts,col,lw*1.1,seg.d?[10,8]:null);
+  }
+  for(const mk of (M.marks||[])){
+    const p=fieldPt(dir*mk.s+ofs,mk.h);
+    if(!p)continue;
+    ctx.strokeStyle=col;ctx.lineWidth=lw*0.8*DPR();
+    ctx.beginPath();ctx.arc(p.x,p.y,15*DPR(),0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=col;ctx.font="bold "+(18*DPR())+"px sans-serif";ctx.textAlign="center";
+    ctx.fillText(mk.t,p.x,p.y+6*DPR());
   }
   // 進入方向矢印と演技名
-  const a0=fieldPt(dir*-100+ofs,H0), a1=fieldPt(dir*-80+ofs,H0);
+  const a0=fieldPt(dir*-140+ofs,H0-15), a1=fieldPt(dir*-105+ofs,H0-15);
   if(a0&&a1){
     line([a0,a1],col,lw*1.2);
     const ang=Math.atan2(a1.y-a0.y,a1.x-a0.x);
     ctx.fillStyle=col;ctx.beginPath();
     ctx.moveTo(a1.x,a1.y);
-    ctx.lineTo(a1.x-16*DPR()*Math.cos(ang-0.4),a1.y-16*DPR()*Math.sin(ang-0.4));
-    ctx.lineTo(a1.x-16*DPR()*Math.cos(ang+0.4),a1.y-16*DPR()*Math.sin(ang+0.4));
+    ctx.lineTo(a1.x-18*DPR()*Math.cos(ang-0.4),a1.y-18*DPR()*Math.sin(ang-0.4));
+    ctx.lineTo(a1.x-18*DPR()*Math.cos(ang+0.4),a1.y-18*DPR()*Math.sin(ang+0.4));
     ctx.fill();
   }
-  label(fieldPt(ofs,H0+185),(S.mIdx+1)+". "+M.name+(dir>0?" →":" ←"),col,true);
+  label(fieldPt(ofs,H0+205),M.name+(dir>0?" →":" ←"),col,true);
 }
 function effCenter(){return S.centerAz+S.trim;}
 // 飛行ライン上の実寸座標(横位置s[m], 高さh[m])→ {方位角, 仰角}
@@ -427,7 +496,7 @@ $("btnCenter").addEventListener("click",()=>{
 // 演技切替
 S.mIdx=-1; S.mDir=1;
 function mUpdate(){
-  $("mName").textContent=S.mIdx<0?"演技: OFF":(S.mIdx+1)+". "+MANEUVERS[S.mIdx].name;
+  $("mName").textContent=S.mIdx<0?"演技: OFF":MANEUVERS[S.mIdx].name;
 }
 $("mPrev").addEventListener("click",()=>{S.mIdx=(S.mIdx<0)?MANEUVERS.length-1:S.mIdx-1;mUpdate();});
 $("mNext").addEventListener("click",()=>{S.mIdx=(S.mIdx>=MANEUVERS.length-1)?-1:S.mIdx+1;mUpdate();});
