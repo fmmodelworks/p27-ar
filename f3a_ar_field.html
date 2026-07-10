@@ -117,14 +117,18 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div class="chkrow"><input type="checkbox" id="ckHorizon" checked><span>水平線</span></div>
       <div class="chkrow"><input type="checkbox" id="ckHeight" checked><span>高度目安(実寸換算)</span></div>
     </div>
+    <div class="row">
+      <label>機種別補正</label>
+      <div class="chkrow"><input type="checkbox" id="ckFlip"><span>画面回転補正を反転(横向きで表示が90°ずれる場合)</span></div>
+    </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.2</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.3</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.2";
+const APP_VERSION="v1.3";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -205,11 +209,11 @@ function project(azDeg, elDeg){
   const dz=m[2]*wx+m[5]*wy+m[8]*wz;
   const fwd=-dz;               // 背面カメラは端末-z方向
   if(fwd<=0.02) return null;   // 後方は非表示
-  // 画面向き(縦/横)補正:画面軸=端末軸を-θ回転
+  // 画面向き(縦/横)補正:画面軸=端末軸をθ回転
   const sc=(screen.orientation&&typeof screen.orientation.angle==="number")?screen.orientation.angle:(window.orientation||0);
-  const t=sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
-  const sx= dx*cT - dy*sT;     // 画面右成分
-  const sy= dx*sT + dy*cT;     // 画面上成分
+  const t=(S.flipRot?-1:1)*sc*D2R,cT=Math.cos(t),sT=Math.sin(t);
+  const sx= dx*cT + dy*sT;     // 画面右成分
+  const sy=-dx*sT + dy*cT;     // 画面上成分
   return {x:W/2 + f*sx/fwd, y:H/2 - f*sy/fwd};
 }
 function norm180(d){d=((d+180)%360+360)%360-180;return d;}
@@ -339,6 +343,8 @@ $("rTrim").addEventListener("input",e=>{S.trim=+e.target.value;$("vTrim").textCo
 for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"]]){
   $(id).addEventListener("change",e=>S.show[key]=e.target.checked);
 }
+S.flipRot=false;
+$("ckFlip").addEventListener("change",e=>S.flipRot=e.target.checked);
 // 画面スリープ防止
 let wl=null;
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&"wakeLock" in navigator){try{wl=await navigator.wakeLock.request("screen");}catch(e){}}});
