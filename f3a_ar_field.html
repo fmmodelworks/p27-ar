@@ -116,6 +116,7 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div class="chkrow"><input type="checkbox" id="ckElev" checked><span>仰角基準線(15/30/45/60°)</span></div>
       <div class="chkrow"><input type="checkbox" id="ckHorizon" checked><span>水平線</span></div>
       <div class="chkrow"><input type="checkbox" id="ckHeight" checked><span>高度目安(実寸換算)</span></div>
+      <div class="chkrow"><input type="checkbox" id="ck45" checked><span>45°演技ライン(センターV字・両サイド)</span></div>
     </div>
     <div class="row">
       <label>機種別補正</label>
@@ -129,13 +130,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       </div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.4</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.5</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.4";
+const APP_VERSION="v1.5";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -147,7 +148,7 @@ const S={
   centerAz:null,             // センター方位(度・磁方位)
   dist:150, vfov:55, trim:0,
   hc:false,
-  show:{box:true,center:true,elev:true,horizon:true,height:true},
+  show:{box:true,center:true,elev:true,horizon:true,height:true,deg45:true},
   hasOrient:false
 };
 
@@ -306,6 +307,8 @@ function draw(){
     line(pts,colCenter,lw);
     label(project(C,3),"CENTER",colCenter);
   }
+  // 45°演技サポートライン
+  if(S.show.deg45) draw45(lw);
   // 高度目安(飛行ライン距離での実寸)
   if(S.show.height){
     ctx.font="11px sans-serif";
@@ -320,6 +323,36 @@ function draw(){
   }
 }
 function effCenter(){return S.centerAz+S.trim;}
+// 飛行ライン上の実寸座標(横位置s[m], 高さh[m])→ {方位角, 仰角}
+function fieldPt(s,h){
+  const d=S.dist;
+  return project(effCenter()+Math.atan2(s,d)*R2D, Math.atan2(h,Math.hypot(d,s))*R2D);
+}
+// 45°演技サポートライン
+function draw45(lw){
+  const col=S.hc?"#ff9900":"#ff8833";
+  const d=S.dist, sEdge=d*Math.tan(60*D2R); // ボックス端の横距離
+  const hMax=d*Math.tan(60*D2R);            // 仰角60°相当の概算上限
+  // センターから左右へ45°上昇(V字)
+  for(const dir of [-1,1]){
+    const pts=[];
+    for(let u=0;u<=sEdge;u+=sEdge/40){
+      if(u>hMax)break;
+      pts.push(fieldPt(dir*u,u));
+    }
+    line(pts,col,lw*0.8,[10,6]);
+  }
+  label(fieldPt(0,8),"45°",col);
+  // 両サイド端から中央へ45°上昇
+  for(const dir of [-1,1]){
+    const pts=[];
+    for(let u=0;u<=sEdge*1.2;u+=sEdge/40){
+      pts.push(fieldPt(dir*(sEdge-u),u));
+    }
+    line(pts,col,lw*0.8,[4,6]);
+    label(fieldPt(dir*(sEdge-10),18),"45°",col);
+  }
+}
 
 // ---- ループ / リサイズ ----
 function loop(){draw();requestAnimationFrame(loop);}
@@ -347,7 +380,7 @@ $("segDist").addEventListener("click",e=>{
 });
 $("rFov").addEventListener("input",e=>{S.vfov=+e.target.value;$("vFov").textContent=S.vfov+"°";saveCal();});
 $("rTrim").addEventListener("input",e=>{S.trim=+e.target.value;$("vTrim").textContent=(+e.target.value).toFixed(1)+"°";});
-for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"]]){
+for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"],["ck45","deg45"]]){
   $(id).addEventListener("change",e=>S.show[key]=e.target.checked);
 }
 S.flipRot=false;
