@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>F3A ARフィールド v1.0</title>
+<style>
+:root{
+  --line:#00ff88;
+  --center:#ffdd00;
+  --elev:#00ccff;
+  --warn:#ff4455;
+  --panel:rgba(10,14,18,.82);
+  --txt:#e8f4ee;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;color:var(--txt)}
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+#ovl{position:fixed;inset:0;z-index:1}
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 0}
+.hudbox{background:var(--panel);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.5;backdrop-filter:blur(4px)}
+.hudbox b{font-variant-numeric:tabular-nums;font-size:15px}
+#btns{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);left:0;right:0;z-index:2;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0 10px}
+button{border:1px solid rgba(255,255,255,.25);background:var(--panel);color:var(--txt);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;backdrop-filter:blur(4px)}
+button:active{background:rgba(0,255,136,.25)}
+button.primary{background:#0a7a4a;border-color:#0fbf74}
+/* 設定パネル */
+#settings{position:fixed;inset:0;z-index:5;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px}
+#settings.open{display:flex}
+.panel{background:#111b16;border:1px solid #1f3a2d;border-radius:14px;padding:18px;width:min(400px,100%);max-height:88vh;overflow-y:auto}
+.panel h2{font-size:16px;color:var(--line);margin-bottom:12px}
+.row{margin-bottom:14px}
+.row label{display:block;font-size:12px;color:#9fc7b2;margin-bottom:4px}
+.row .val{float:right;color:var(--line);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:#0fbf74}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:8px 4px;font-size:13px}
+.seg button.on{background:#0a7a4a;border-color:#0fbf74}
+.chkrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
+.chkrow input{width:18px;height:18px;accent-color:#0fbf74}
+/* 起動画面 */
+#start{position:fixed;inset:0;z-index:10;background:#0a0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+#start h1{font-size:22px;color:var(--line);letter-spacing:.08em}
+#start p{font-size:13px;color:#9fc7b2;line-height:1.7;max-width:340px}
+#err{color:var(--warn);font-size:12px;max-width:340px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h1>F3A AR FIELD</h1>
+  <p>カメラと姿勢センサーを使い、P-27演技ボックス(左右60°・仰角基準線)を実映像に重ねて表示します。<br>センターに正対してから「センター設定」を押してください。</p>
+  <button class="primary" id="btnStart" style="font-size:16px;padding:14px 28px">開始(カメラ・センサー許可)</button>
+  <div id="err"></div>
+</div>
+
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="ovl"></canvas>
+
+<div id="hud" style="display:none">
+  <div class="hudbox">方位 <b id="hAz">--</b>° / センター偏差 <b id="hDev">--</b>°<br>仰角 <b id="hEl">--</b>°</div>
+  <div class="hudbox" id="hDist">150m</div>
+</div>
+
+<div id="btns" style="display:none">
+  <button class="primary" id="btnCenter">センター設定</button>
+  <button id="btnHC">高輝度</button>
+  <button id="btnSet">設定 ⚙</button>
+</div>
+
+<div id="settings">
+  <div class="panel">
+    <h2>設定</h2>
+    <div class="row">
+      <label>飛行ライン距離 <span class="val" id="vDist">150 m</span></label>
+      <div class="seg" id="segDist">
+        <button data-d="150" class="on">150m</button>
+        <button data-d="175">175m</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>カメラ垂直FOV(機種較正)<span class="val" id="vFov">55°</span></label>
+      <input type="range" id="rFov" min="30" max="90" step="1" value="55">
+    </div>
+    <div class="row">
+      <label>方位微調整 <span class="val" id="vTrim">0.0°</span></label>
+      <input type="range" id="rTrim" min="-15" max="15" step="0.5" value="0">
+    </div>
+    <div class="row">
+      <label>表示要素</label>
+      <div class="chkrow"><input type="checkbox" id="ckBox" checked><span>ボックス境界(±60°)</span></div>
+      <div class="chkrow"><input type="checkbox" id="ckCenter" checked><span>センターライン</span></div>
+      <div class="chkrow"><input type="checkbox" id="ckElev" checked><span>仰角基準線(15/30/45/60°)</span></div>
+      <div class="chkrow"><input type="checkbox" id="ckHorizon" checked><span>水平線</span></div>
+      <div class="chkrow"><input type="checkbox" id="ckHeight" checked><span>高度目安(実寸換算)</span></div>
+    </div>
+    <button class="primary" style="width:100%" id="btnClose">閉じる</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+// ---- 状態 ----
+const S={
+  yaw:0,pitch:0,roll:0,      // デバイス姿勢(ラジアン)
+  centerAz:null,             // センター方位(度・磁方位)
+  dist:150, vfov:55, trim:0,
+  hc:false,
+  show:{box:true,center:true,elev:true,horizon:true,height:true},
+  hasOrient:false
+};
+
+// ---- 起動 ----
+$("btnStart").addEventListener("click", async ()=>{
+  try{
+    // iOSセンサー許可
+    if(typeof DeviceOrientationEvent!=="undefined" && typeof DeviceOrientationEvent.requestPermission==="function"){
+      const p=await DeviceOrientationEvent.requestPermission();
+      if(p!=="granted") throw new Error("センサー許可が拒否されました");
+    }
+    startOrientation();
+    const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920}},audio:false});
+    cam.srcObject=st;
+    $("start").style.display="none";
+    $("hud").style.display="flex";
+    $("btns").style.display="flex";
+    resize();
+    loop();
+  }catch(e){
+    $("err").textContent="エラー: "+e.message+"(HTTPS接続とカメラ/モーション許可を確認してください)";
+  }
+});
+
+// ---- 姿勢センサー ----
+function startOrientation(){
+  const evName=("ondeviceorientationabsolute" in window)?"deviceorientationabsolute":"deviceorientation";
+  window.addEventListener(evName, e=>{
+    let alpha=e.alpha, beta=e.beta, gamma=e.gamma;
+    if(alpha==null) return;
+    // iOS: webkitCompassHeading は真の磁方位(時計回り)
+    let heading;
+    if(e.webkitCompassHeading!=null){ heading=e.webkitCompassHeading; }
+    else { heading=(360-alpha)%360; } // Android absolute
+    S.hasOrient=true;
+    // 端末→世界の回転(ZXY順: alpha,beta,gamma)から視線方向を算出
+    const a=alpha*D2R,b=beta*D2R,g=gamma*D2R;
+    // 回転行列 R = Rz(a)Rx(b)Ry(g)
+    const cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b),sB=Math.sin(b),cG=Math.cos(g),sG=Math.sin(g);
+    // 端末座標: 画面奥方向 = (0,0,-1)。世界座標(東x,北y,上z)へ
+    // R行列成分(W3C仕様 ZXY)
+    const m=[
+      cA*cG - sA*sB*sG, -sA*cB, cA*sG + sA*sB*cG,
+      sA*cG + cA*sB*sG,  cA*cB, sA*sG - cA*sB*cG,
+      -cB*sG,            sB,    cB*cG
+    ];
+    // 背面カメラ視線 = 端末-z軸 → 世界ベクトル
+    const vx=-m[2], vy=-m[5], vz=-m[8];
+    // 方位(北0°時計回り)・仰角
+    let az=Math.atan2(vx,vy)*R2D; if(az<0)az+=360;
+    const el=Math.asin(Math.max(-1,Math.min(1,vz)))*R2D;
+    // 画面ロール(世界上方向の画面内傾き)
+    // 端末x軸(画面右)の世界ベクトル
+    const rx=m[0],ry=m[3],rz=m[6];
+    // 視線に直交する「上」との比較でロール算出
+    const roll=Math.atan2(rz, Math.hypot(rx,ry)*Math.sign(rx*(-vy)+ry*vx || 1e-9));
+    // 簡易・安定版: 端末y軸(画面上)の世界z成分から
+    const ux=m[1],uy=m[4],uz=m[7];
+    S.rollScreen=Math.atan2(-rz,uz); // 画面の傾き
+    S.az=az; S.el=el;
+  },true);
+}
+
+// ---- 投影 ----
+// 世界方位角az°・仰角el°の点を画面座標へ(ピンホール)
+function project(azDeg, elDeg){
+  if(S.centerAz==null || !S.hasOrient) return null;
+  const W=ovl.width,H=ovl.height;
+  const vf=S.vfov*D2R;
+  const f=(H/2)/Math.tan(vf/2); // 焦点距離(px)
+  // カメラ視線を基準にした相対角
+  const dAz=norm180(azDeg - S.az)*D2R;
+  const camEl=S.el*D2R, ptEl=elDeg*D2R;
+  // 対象方向ベクトル(カメラ方位基準)
+  const x=Math.sin(dAz)*Math.cos(ptEl);
+  const y=Math.cos(dAz)*Math.cos(ptEl);
+  const z=Math.sin(ptEl);
+  // カメラ仰角分ピッチ回転
+  const cy=y*Math.cos(camEl)+z*Math.sin(camEl);
+  const cz=-y*Math.sin(camEl)+z*Math.cos(camEl);
+  if(cy<=0.02) return null; // 後方
+  let px=f*x/cy, py=-f*cz/cy;
+  // 画面ロール補正
+  const r=S.rollScreen||0;
+  const rp={x:px*Math.cos(r)-py*Math.sin(r), y:px*Math.sin(r)+py*Math.cos(r)};
+  return {x:W/2+rp.x, y:H/2+rp.y};
+}
+function norm180(d){d=((d+180)%360+360)%360-180;return d;}
+
+// ---- 描画 ----
+function line(points,color,width,dash){
+  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash||[]);
+  let started=false;ctx.beginPath();
+  for(const p of points){
+    if(!p){started=false;continue;}
+    if(!started){ctx.moveTo(p.x,p.y);started=true;}else ctx.lineTo(p.x,p.y);
+  }
+  ctx.stroke();ctx.setLineDash([]);
+}
+function label(p,txt,color){
+  if(!p)return;
+  ctx.font="bold 13px sans-serif";
+  ctx.fillStyle="rgba(0,0,0,.6)";
+  const w=ctx.measureText(txt).width;
+  ctx.fillRect(p.x-w/2-4,p.y-18,w+8,17);
+  ctx.fillStyle=color;ctx.textAlign="center";ctx.fillText(txt,p.x,p.y-5);
+}
+
+function draw(){
+  const W=ovl.width,H=ovl.height;
+  ctx.clearRect(0,0,W,H);
+  if(!S.hasOrient)return;
+
+  // HUD更新
+  $("hAz").textContent=S.az.toFixed(0);
+  $("hEl").textContent=S.el.toFixed(0);
+  $("hDev").textContent=S.centerAz==null?"--":norm180(S.az-effCenter()).toFixed(0);
+
+  if(S.centerAz==null){
+    ctx.fillStyle="rgba(0,0,0,.55)";ctx.fillRect(0,H/2-24,W,48);
+    ctx.fillStyle="#ffdd00";ctx.font="bold 16px sans-serif";ctx.textAlign="center";
+    ctx.fillText("演技センターに向けて「センター設定」を押してください",W/2,H/2+6);
+    // 照準
+    ctx.strokeStyle="#ffdd00";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(W/2-20,H/2-60);ctx.lineTo(W/2+20,H/2-60);
+    ctx.moveTo(W/2,H/2-80);ctx.lineTo(W/2,H/2-40);ctx.stroke();
+    return;
+  }
+  const C=effCenter();
+  const lw=S.hc?4:2.5;
+  const cLine=S.hc?"#00ff00":"var".includes("x")?"#00ff88":"#00ff88";
+  const colLine=S.hc?"#00ff00":"#00ff88";
+  const colCenter=S.hc?"#ffff00":"#ffdd00";
+  const colElev=S.hc?"#00ffff":"#00ccff";
+
+  // 水平線
+  if(S.show.horizon){
+    const pts=[];
+    for(let d=-90;d<=90;d+=3)pts.push(project(C+d,0));
+    line(pts,"rgba(255,255,255,.85)",lw*0.7,[8,6]);
+  }
+  // 仰角基準線(ボックス内のみ)
+  if(S.show.elev){
+    for(const e of [15,30,45]){
+      const pts=[];
+      for(let d=-60;d<=60;d+=3)pts.push(project(C+d,e));
+      line(pts,colElev,lw*0.7,[4,5]);
+      label(project(C-60,e),e+"°",colElev);
+    }
+  }
+  // ボックス境界 ±60° と 上限60°
+  if(S.show.box){
+    for(const side of [-60,60]){
+      const pts=[];
+      for(let e=0;e<=60;e+=2)pts.push(project(C+side,e));
+      line(pts,colLine,lw);
+      label(project(C+side,5),(side<0?"L":"R")+"60°",colLine);
+    }
+    const top=[];
+    for(let d=-60;d<=60;d+=3)top.push(project(C+d,60));
+    line(top,colLine,lw);
+    label(project(C,60),"60°上限",colLine);
+  }
+  // センターライン
+  if(S.show.center){
+    const pts=[];
+    for(let e=0;e<=75;e+=2)pts.push(project(C,e));
+    line(pts,colCenter,lw);
+    label(project(C,3),"CENTER",colCenter);
+  }
+  // 高度目安(飛行ライン距離での実寸)
+  if(S.show.height){
+    ctx.font="11px sans-serif";
+    for(const h of [50,100,150,200]){
+      const e=Math.atan(h/S.dist)*R2D;
+      if(e>60)continue;
+      const p=project(C+58,e);
+      if(p){ctx.fillStyle="#fff";ctx.textAlign="left";ctx.fillText(h+"m",p.x+4,p.y+4);}
+      const tick=[project(C+56,e),project(C+60,e)];
+      line(tick,"rgba(255,255,255,.9)",lw*0.6);
+    }
+  }
+}
+function effCenter(){return S.centerAz+S.trim;}
+
+// ---- ループ / リサイズ ----
+function loop(){draw();requestAnimationFrame(loop);}
+function resize(){ovl.width=innerWidth*devicePixelRatio;ovl.height=innerHeight*devicePixelRatio;ovl.style.width=innerWidth+"px";ovl.style.height=innerHeight+"px";}
+addEventListener("resize",resize);
+addEventListener("orientationchange",()=>setTimeout(resize,300));
+
+// ---- UI ----
+$("btnCenter").addEventListener("click",()=>{
+  if(!S.hasOrient){alert("センサー未取得です");return;}
+  S.centerAz=S.az; S.trim=0; $("rTrim").value=0; $("vTrim").textContent="0.0°";
+});
+$("btnHC").addEventListener("click",e=>{S.hc=!S.hc;e.target.textContent=S.hc?"通常":"高輝度";});
+$("btnSet").addEventListener("click",()=>$("settings").classList.add("open"));
+$("btnClose").addEventListener("click",()=>$("settings").classList.remove("open"));
+$("segDist").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  S.dist=+b.dataset.d;
+  $("segDist").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  $("vDist").textContent=S.dist+" m";$("hDist").textContent=S.dist+"m";
+});
+$("rFov").addEventListener("input",e=>{S.vfov=+e.target.value;$("vFov").textContent=S.vfov+"°";});
+$("rTrim").addEventListener("input",e=>{S.trim=+e.target.value;$("vTrim").textContent=(+e.target.value).toFixed(1)+"°";});
+for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"]]){
+  $(id).addEventListener("change",e=>S.show[key]=e.target.checked);
+}
+// 画面スリープ防止
+let wl=null;
+document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&"wakeLock" in navigator){try{wl=await navigator.wakeLock.request("screen");}catch(e){}}});
+$("btnStart").addEventListener("click",async()=>{if("wakeLock" in navigator){try{wl=await navigator.wakeLock.request("screen");}catch(e){}}});
+</script>
+</body>
+</html>
