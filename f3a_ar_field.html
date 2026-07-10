@@ -19,8 +19,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:"Hi
 #ovl{position:fixed;inset:0;z-index:1}
 /* HUD */
 #hud{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 0}
-.hudbox{background:var(--panel);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.5;backdrop-filter:blur(4px)}
-.hudbox b{font-variant-numeric:tabular-nums;font-size:15px}
+.hudbox{background:var(--panel);border-radius:8px;padding:6px 10px;font-size:15px;line-height:1.5;backdrop-filter:blur(4px)}
+.hudbox b{font-variant-numeric:tabular-nums;font-size:19px}
 #btns{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);left:0;right:0;z-index:2;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0 10px}
 button{border:1px solid rgba(255,255,255,.25);background:var(--panel);color:var(--txt);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;backdrop-filter:blur(4px)}
 button:active{background:rgba(0,255,136,.25)}
@@ -90,6 +90,12 @@ input[type=range]{width:100%;accent-color:#0fbf74}
   <button id="btnHelp">?</button>
   <button id="btnSet">設定 ⚙</button>
 </div>
+<div id="mbar" style="display:none;position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 66px);left:0;right:0;z-index:2;justify-content:center;gap:8px;padding:0 10px;align-items:center">
+  <button id="mPrev" style="font-size:18px;padding:10px 16px">◀</button>
+  <button id="mName" style="min-width:180px;font-size:15px">演技: OFF</button>
+  <button id="mNext" style="font-size:18px;padding:10px 16px">▶</button>
+  <button id="mDir" style="font-size:15px">右→</button>
+</div>
 
 <div id="settings">
   <div class="panel">
@@ -130,13 +136,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       </div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.5</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v1.6</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v1.5";
+const APP_VERSION="v1.6";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -166,6 +172,7 @@ $("btnStart").addEventListener("click", async ()=>{
     $("start").style.display="none";
     $("hud").style.display="flex";
     $("btns").style.display="flex";
+    $("mbar").style.display="flex";
     resize();
     loop();
   }catch(e){
@@ -227,8 +234,9 @@ function project(azDeg, elDeg){
 function norm180(d){d=((d+180)%360+360)%360-180;return d;}
 
 // ---- 描画 ----
+const DPR=()=>window.devicePixelRatio||1;
 function line(points,color,width,dash){
-  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash||[]);
+  ctx.strokeStyle=color;ctx.lineWidth=width*DPR();ctx.setLineDash((dash||[]).map(d=>d*DPR()));
   let started=false;ctx.beginPath();
   for(const p of points){
     if(!p){started=false;continue;}
@@ -236,13 +244,14 @@ function line(points,color,width,dash){
   }
   ctx.stroke();ctx.setLineDash([]);
 }
-function label(p,txt,color){
+function label(p,txt,color,big){
   if(!p)return;
-  ctx.font="bold 13px sans-serif";
-  ctx.fillStyle="rgba(0,0,0,.6)";
+  const fs=(big?26:20)*DPR();
+  ctx.font="bold "+fs+"px sans-serif";
+  ctx.fillStyle="rgba(0,0,0,.65)";
   const w=ctx.measureText(txt).width;
-  ctx.fillRect(p.x-w/2-4,p.y-18,w+8,17);
-  ctx.fillStyle=color;ctx.textAlign="center";ctx.fillText(txt,p.x,p.y-5);
+  ctx.fillRect(p.x-w/2-6*DPR(),p.y-fs-8*DPR(),w+12*DPR(),fs+6*DPR());
+  ctx.fillStyle=color;ctx.textAlign="center";ctx.fillText(txt,p.x,p.y-6*DPR());
 }
 
 function draw(){
@@ -256,13 +265,14 @@ function draw(){
   $("hDev").textContent=S.centerAz==null?"--":norm180(S.az-effCenter()).toFixed(0);
 
   if(S.centerAz==null){
-    ctx.fillStyle="rgba(0,0,0,.55)";ctx.fillRect(0,H/2-24,W,48);
-    ctx.fillStyle="#ffdd00";ctx.font="bold 16px sans-serif";ctx.textAlign="center";
-    ctx.fillText("演技センターに向けて「センター設定」を押してください",W/2,H/2+6);
-    // 照準
-    ctx.strokeStyle="#ffdd00";ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(W/2-20,H/2-60);ctx.lineTo(W/2+20,H/2-60);
-    ctx.moveTo(W/2,H/2-80);ctx.lineTo(W/2,H/2-40);ctx.stroke();
+    const fs=22*DPR();
+    ctx.fillStyle="rgba(0,0,0,.55)";ctx.fillRect(0,H/2-fs*1.6,W,fs*3.2);
+    ctx.fillStyle="#ffdd00";ctx.font="bold "+fs+"px sans-serif";ctx.textAlign="center";
+    ctx.fillText("演技センターに向けて",W/2,H/2-fs*0.3);
+    ctx.fillText("「センター設定」を押してください",W/2,H/2+fs*1.1);
+    ctx.strokeStyle="#ffdd00";ctx.lineWidth=3*DPR();
+    ctx.beginPath();ctx.moveTo(W/2-30*DPR(),H/2-90*DPR());ctx.lineTo(W/2+30*DPR(),H/2-90*DPR());
+    ctx.moveTo(W/2,H/2-120*DPR());ctx.lineTo(W/2,H/2-60*DPR());ctx.stroke();
     return;
   }
   const C=effCenter();
@@ -311,16 +321,65 @@ function draw(){
   if(S.show.deg45) draw45(lw);
   // 高度目安(飛行ライン距離での実寸)
   if(S.show.height){
-    ctx.font="11px sans-serif";
+    ctx.font="bold "+(16*DPR())+"px sans-serif";
     for(const h of [50,100,150,200]){
       const e=Math.atan(h/S.dist)*R2D;
       if(e>60)continue;
       const p=project(C+58,e);
-      if(p){ctx.fillStyle="#fff";ctx.textAlign="left";ctx.fillText(h+"m",p.x+4,p.y+4);}
+      if(p){ctx.fillStyle="#fff";ctx.textAlign="left";ctx.fillText(h+"m",p.x+5*DPR(),p.y+5*DPR());}
       const tick=[project(C+56,e),project(C+60,e)];
       line(tick,"rgba(255,255,255,.9)",lw*0.6);
     }
   }
+  // 演技図形
+  if(S.mIdx>=0) drawManeuver(lw);
+}
+// ---- P-27 演技図形 ----
+// 図形は飛行ライン面の実寸座標 {s:横[m], h:高さ[m]} の列。dir=+1:右向き進入, -1:左向き進入
+const H0=60, R=45; // 基準高度・基準半径[m]
+function arcPts(cs,ch,r,a0,a1,n){n=n||28;const o=[];for(let i=0;i<=n;i++){const a=(a0+(a1-a0)*i/n)*D2R;o.push({s:cs+r*Math.cos(a),h:ch+r*Math.sin(a)});}return o;}
+function ln(s0,h0,s1,h1,n){n=n||16;const o=[];for(let i=0;i<=n;i++)o.push({s:s0+(s1-s0)*i/n,h:h0+(h1-h0)*i/n});return o;}
+const MANEUVERS=[
+ {name:"ループ",anchor:"c",path:()=>[arcPts(0,H0+R,R,-90,270)]},
+ {name:"スクエアループ",anchor:"c",path:()=>[ln(-70,H0,70,H0),ln(70,H0,70,H0+140),ln(70,H0+140,-70,H0+140),ln(-70,H0+140,-70,H0)]},
+ {name:"ハーフスクエアループ",anchor:"e",path:()=>[ln(-60,H0,0,H0),arcPts(0,H0+30,30,-90,0,14),ln(30,H0+30,30,H0+140)]},
+ {name:"ストールターン",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+25,25,-90,0,12),ln(25,H0+25,25,H0+150),ln(25,H0+150,45,H0+150),ln(45,H0+150,45,H0+25),arcPts(70,H0+25,25,180,270,12)]},
+ {name:"ロール(水平)",anchor:"c",path:()=>[ln(-90,H0+60,90,H0+60)],ticks:true},
+ {name:"45°アップロール",anchor:"c",path:()=>[ln(-80,H0,80,H0+160)],ticks:true},
+ {name:"45°ダウンロール",anchor:"c",path:()=>[ln(-80,H0+160,80,H0)],ticks:true},
+ {name:"ハンプティバンプ",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+25,25,-90,0,12),ln(25,H0+25,25,H0+130),arcPts(45,H0+130,20,180,0,16),ln(65,H0+130,65,H0+25),arcPts(90,H0+25,25,180,270,12)]},
+ {name:"トップハット",anchor:"c",path:()=>[ln(-90,H0,-50,H0),arcPts(-50,H0+25,25,-90,0,12),ln(-25,H0+25,-25,H0+110),arcPts(0,H0+110,25,180,90,12),ln(0,H0+135,0,H0+135),ln(0,H0+135,25,H0+135),arcPts(25,H0+110,25,90,0,12),ln(50,H0+110,50,H0+25),arcPts(75,H0+25,25,180,270,12),ln(75,H0,90,H0)]},
+ {name:"ハーフエイト(上半ループ)",anchor:"e",path:()=>[ln(-70,H0,0,H0),arcPts(0,H0+R,R,-90,90),ln(0,H0+2*R,-70,H0+2*R)]},
+ {name:"アワーグラス",anchor:"c",path:()=>[ln(-80,H0,55,H0+150),arcPts(35,H0+163,24,40,140,14),ln(15,H0+150,-55,H0+150),ln(-55,H0+150,80,H0)]},
+ {name:"スピン",anchor:"c",path:()=>{const p=[ln(-60,H0+150,0,H0+150,8)];const z=[];for(let i=0;i<=40;i++){const t=i/40;z.push({s:Math.sin(t*Math.PI*6)*8,h:H0+150-t*120});}p.push(z);p.push(ln(0,H0+30,60,H0+30,8));return p;}},
+];
+function drawManeuver(lw){
+  const M=MANEUVERS[S.mIdx];if(!M)return;
+  const col=S.hc?"#ff44ff":"#ee66ff";
+  const dir=S.mDir;
+  const ofs=(M.anchor==="e")?dir*S.dist*Math.tan(35*D2R):0; // 端演技はサイド寄りに配置
+  for(const segPts of M.path()){
+    const pts=segPts.map(q=>fieldPt(dir*q.s+ofs,q.h));
+    line(pts,col,lw*1.1);
+    if(M.ticks){ // ロール演技の回転マーク
+      const mid=segPts[Math.floor(segPts.length/2)];
+      const p=fieldPt(dir*mid.s+ofs,mid.h);
+      if(p){ctx.strokeStyle=col;ctx.lineWidth=lw*DPR();ctx.beginPath();
+        ctx.arc(p.x,p.y,14*DPR(),0,Math.PI*2);ctx.stroke();}
+    }
+  }
+  // 進入方向矢印と演技名
+  const a0=fieldPt(dir*-100+ofs,H0), a1=fieldPt(dir*-80+ofs,H0);
+  if(a0&&a1){
+    line([a0,a1],col,lw*1.2);
+    const ang=Math.atan2(a1.y-a0.y,a1.x-a0.x);
+    ctx.fillStyle=col;ctx.beginPath();
+    ctx.moveTo(a1.x,a1.y);
+    ctx.lineTo(a1.x-16*DPR()*Math.cos(ang-0.4),a1.y-16*DPR()*Math.sin(ang-0.4));
+    ctx.lineTo(a1.x-16*DPR()*Math.cos(ang+0.4),a1.y-16*DPR()*Math.sin(ang+0.4));
+    ctx.fill();
+  }
+  label(fieldPt(ofs,H0+185),(S.mIdx+1)+". "+M.name+(dir>0?" →":" ←"),col,true);
 }
 function effCenter(){return S.centerAz+S.trim;}
 // 飛行ライン上の実寸座標(横位置s[m], 高さh[m])→ {方位角, 仰角}
@@ -365,6 +424,15 @@ $("btnCenter").addEventListener("click",()=>{
   if(!S.hasOrient){alert("センサー未取得です");return;}
   S.centerAz=S.az; S.trim=0; $("rTrim").value=0; $("vTrim").textContent="0.0°";
 });
+// 演技切替
+S.mIdx=-1; S.mDir=1;
+function mUpdate(){
+  $("mName").textContent=S.mIdx<0?"演技: OFF":(S.mIdx+1)+". "+MANEUVERS[S.mIdx].name;
+}
+$("mPrev").addEventListener("click",()=>{S.mIdx=(S.mIdx<0)?MANEUVERS.length-1:S.mIdx-1;mUpdate();});
+$("mNext").addEventListener("click",()=>{S.mIdx=(S.mIdx>=MANEUVERS.length-1)?-1:S.mIdx+1;mUpdate();});
+$("mName").addEventListener("click",()=>{S.mIdx=-1;mUpdate();});
+$("mDir").addEventListener("click",e=>{S.mDir*=-1;e.target.textContent=S.mDir>0?"右→":"←左";});
 $("btnHC").addEventListener("click",e=>{S.hc=!S.hc;e.target.textContent=S.hc?"通常":"高輝度";});
 $("btnSet").addEventListener("click",()=>$("settings").classList.add("open"));
 $("btnClose").addEventListener("click",()=>$("settings").classList.remove("open"));
