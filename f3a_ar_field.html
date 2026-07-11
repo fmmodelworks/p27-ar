@@ -135,14 +135,19 @@ input[type=range]{width:100%;accent-color:#0fbf74}
         <button data-o="270">-90°</button>
       </div>
     </div>
+    <div class="row">
+      <label>演技リスト(採点アプリのCSVと互換)</label>
+      <input type="file" id="csvIn" accept=".csv,text/csv" style="font-size:12px;color:#9fc7b2;width:100%">
+      <div id="csvStat" style="font-size:11px;color:#5f8a72;margin-top:4px">未読込(内蔵P-27名称を使用)</div>
+    </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v2.0</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v2.1</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v2.0";
+const APP_VERSION="v2.1";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -502,6 +507,43 @@ $("mPrev").addEventListener("click",()=>{S.mIdx=(S.mIdx<0)?MANEUVERS.length-1:S.
 $("mNext").addEventListener("click",()=>{S.mIdx=(S.mIdx>=MANEUVERS.length-1)?-1:S.mIdx+1;mUpdate();});
 $("mName").addEventListener("click",()=>{S.mIdx=-1;mUpdate();});
 $("mDir").addEventListener("click",e=>{S.mDir*=-1;e.target.textContent=S.mDir>0?"右→":"←左";});
+// 採点アプリ互換CSV(演技No.,演技名,K係数)読込 → 番号でMANEUVERSへ反映
+function applyCsv(text){
+  const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim());
+  const rows=(lines[0].includes("演技名")||lines[0].includes("K係数"))?lines.slice(1):lines;
+  let n=0;
+  for(const line of rows){
+    const m=line.match(/^\s*(\d+)\s*,\s*"?(.*?)"?\s*,\s*([\d.]+)\s*$/);
+    if(!m)continue;
+    const no=parseInt(m[1],10);
+    const tgt=MANEUVERS.find(x=>x.name.match(/^(\d+)[.\s]/)&&parseInt(x.name)===no);
+    if(tgt){tgt.name=no+". "+m[2].replace(/""/g,'"')+" (K="+m[3]+")";n++;}
+  }
+  return n;
+}
+$("csvIn").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const n=applyCsv(ev.target.result);
+    if(n>0){
+      $("csvStat").textContent="読込済: "+n+"演技の名称・Kを適用("+f.name+")";
+      try{localStorage.setItem("f3a_ar_mlist",ev.target.result);}catch(_){}
+      mUpdate();
+    }else{
+      $("csvStat").textContent="形式エラー:『演技No.,演技名,K係数』のCSVを指定してください";
+    }
+    e.target.value="";
+  };
+  r.readAsText(f);
+});
+// 前回読込済みリストの復元
+(function(){
+  try{
+    const t=localStorage.getItem("f3a_ar_mlist");
+    if(t){const n=applyCsv(t);if(n>0)$("csvStat").textContent="読込済(前回保存): "+n+"演技を適用";}
+  }catch(_){}
+})();
 $("btnHC").addEventListener("click",e=>{S.hc=!S.hc;e.target.textContent=S.hc?"通常":"高輝度";});
 $("btnSet").addEventListener("click",()=>$("settings").classList.add("open"));
 $("btnClose").addEventListener("click",()=>$("settings").classList.remove("open"));
