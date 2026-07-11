@@ -59,18 +59,24 @@ input[type=range]{width:100%;accent-color:#0fbf74}
 
 <div id="help" style="position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:16px">
   <div class="panel">
-    <h2>使い方</h2>
+    <h2>使い方(v3.2)</h2>
     <div style="font-size:13px;line-height:1.8;color:#cfe8da">
       <p style="color:#00ff88;font-weight:600;margin-top:8px">1. 準備</p>
       <p>HTTPSで本ページを開き、「開始」でカメラとモーションセンサーを許可します。縦・横どちらの向きでも使用できます(途中で持ち替えてもOK)。</p>
       <p style="color:#00ff88;font-weight:600;margin-top:10px">2. センター設定</p>
-      <p>画面中央の照準を演技センター(パイロン等の目印)に合わせ、「センター設定」を押します。以後、その方位を基準にボックスが表示されます。</p>
+      <p>画面中央の照準を演技センター(パイロン等の目印)に合わせ、「センター設定」を押します。以後、その方位を基準にボックスが表示されます。ずれたら設定⚙の「方位微調整」か再センター設定で補正します。</p>
       <p style="color:#00ff88;font-weight:600;margin-top:10px">3. 表示の見方</p>
-      <p>緑=ボックス境界(L60°/R60°/上限60°)、黄=センターライン、水色=仰角基準線(15/30/45°)、白破線=水平線。右端の白ティックは飛行ライン距離での高度目安(50〜200m)です。</p>
-      <p style="color:#00ff88;font-weight:600;margin-top:10px">4. 較正</p>
-      <p>設定⚙でカメラFOVを調整し、既知の目標物とライン幅が一致するよう一度合わせてください。方位がずれた場合は「方位微調整」または再センター設定で補正します。</p>
+      <p>緑=ボックス境界(L60°/R60°/上限60°)、黄=センターライン、水色=仰角基準線(15/30/45°)、白破線=水平線、オレンジ破線=45°演技サポートライン、右端の白ティック=高度目安(50〜200m実寸換算)。各要素は設定⚙で個別にON/OFFできます。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">4. P-27演技表示</p>
+      <p>下段の◀▶で演技1〜17を切替(マゼンタの図形、FlightCoachテンプレート実軌跡由来)。●=進入点、矢印=進行方向。演技名をタップでOFF。「右風/左風」ボタンでスケジュール全体をミラー反転します(テンプレートは右風パターン)。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">5. 採点アプリ連携</p>
+      <p>設定⚙の「演技リスト」で、採点集計アプリが出力したCSV(演技No.,演技名,K係数)を読み込むと、演技名とK係数が同期表示されます。読込結果は保存され、次回も自動適用されます。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">6. 上空の直線化</p>
+      <p>設定⚙のスライダーで投影方式を調整します。0%=カメラ映像と厳密一致(ただし上空で境界線がすぼまり、水平線が湾曲)/100%=方位・仰角の等間隔割付け(境界線は完全な垂直直線、等仰角線は完全な水平直線で、目視の感覚に一致)。100%側では画面端ほど実景とのズレが増えるため、機体は画面中央付近で追ってください。</p>
+      <p style="color:#00ff88;font-weight:600;margin-top:10px">7. 較正(初回のみ)</p>
+      <p>カメラFOV:既知の目標物とライン幅が一致するよう調整。表示が90°回転する機種は「表示回転オフセット」、横向き時だけずれる機種は「画面回転補正を反転」で補正します。較正値・距離・直線化は自動保存されます。</p>
       <p style="color:#00ff88;font-weight:600;margin-top:10px">注意</p>
-      <p>方位は磁気コンパスに依存します。金属構造物・車両の近くでは誤差が出ます。屋外で日差しが強い場合は「高輝度」モードをご利用ください。</p>
+      <p>方位は磁気コンパスに依存します。金属構造物・車両の近くでは誤差が出ます。屋外で日差しが強い場合は「高輝度」モードをご利用ください。図形は距離設定(150/175m)に合わせて自動スケールされます。</p>
     </div>
     <button class="primary" style="width:100%;margin-top:12px" id="btnHelpClose">閉じる</button>
   </div>
@@ -146,13 +152,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div id="csvStat" style="font-size:11px;color:#5f8a72;margin-top:4px">未読込(内蔵P-27名称を使用)</div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.1</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.2</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v3.1";
+const APP_VERSION="v3.2";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -239,12 +245,19 @@ function project(azDeg, elDeg){
   const t=((S.flipRot?-1:1)*sc + (S.rotOfs||0))*D2R,cT=Math.cos(t),sT=Math.sin(t);
   const sx= dx*cT + dy*sT;     // 画面右成分
   const sy=-dx*sT + dy*cT;     // 画面上成分
-  // 投影: 透視(カメラ一致) ⇔ 角度等間隔(直線的な見え方) をブレンド
+  // 投影: 透視(カメラ一致) ⇔ 世界パノラマ(方位・仰角を直接割付け=完全直線) をブレンド
   const b=(S.straighten||0)/100;
   const rl_x=sx/fwd, rl_y=sy/fwd;                          // 透視
-  const eq_x=Math.atan2(sx,fwd), eq_y=Math.atan2(sy,Math.hypot(sx,fwd)); // 角度等間隔
-  const px=f*((1-b)*rl_x + b*eq_x);
-  const py=f*((1-b)*rl_y + b*eq_y);
+  // パノラマ: 方位角差・仰角差をそのまま画面距離に(等仰角線=完全な水平直線)
+  let dAz=(azDeg-S.az)*D2R; if(dAz>Math.PI)dAz-=2*Math.PI; if(dAz<-Math.PI)dAz+=2*Math.PI;
+  const dEl=(elDeg-S.el)*D2R;
+  // 端末ロール補正(世界上方向の画面内傾き)
+  const upx=m[6]*cT+m[7]*sT, upy=-m[6]*sT+m[7]*cT;
+  const rr=Math.atan2(-upx,upy), cR=Math.cos(rr), sR=Math.sin(rr);
+  const pn_x=dAz*cR - dEl*sR;
+  const pn_y=dAz*sR + dEl*cR;
+  const px=f*((1-b)*rl_x + b*pn_x);
+  const py=f*((1-b)*rl_y + b*pn_y);
   return {x:W/2 + px, y:H/2 - py};
 }
 function norm180(d){d=((d+180)%360+360)%360-180;return d;}
