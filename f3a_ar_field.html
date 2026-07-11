@@ -59,7 +59,7 @@ input[type=range]{width:100%;accent-color:#0fbf74}
 
 <div id="help" style="position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:16px">
   <div class="panel">
-    <h2>使い方(v3.2)</h2>
+    <h2>使い方(v3.3)</h2>
     <div style="font-size:13px;line-height:1.8;color:#cfe8da">
       <p style="color:#00ff88;font-weight:600;margin-top:8px">1. 準備</p>
       <p>HTTPSで本ページを開き、「開始」でカメラとモーションセンサーを許可します。縦・横どちらの向きでも使用できます(途中で持ち替えてもOK)。</p>
@@ -152,13 +152,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div id="csvStat" style="font-size:11px;color:#5f8a72;margin-top:4px">未読込(内蔵P-27名称を使用)</div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.2</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.3</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v3.2";
+const APP_VERSION="v3.3";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -418,24 +418,16 @@ function fieldPt(s,h){
 function draw45(lw){
   const col=S.hc?"#ff9900":"#ff8833";
   const d=S.dist, sEdge=d*Math.tan(60*D2R); // ボックス端の横距離
-  const hMax=d*Math.tan(60*D2R);            // 仰角60°相当の概算上限
-  // センターから左右へ45°上昇(V字)
+  // センターから左右へ45°上昇(V字):始点・終点を投影し画面上で直線に
   for(const dir of [-1,1]){
-    const pts=[];
-    for(let u=0;u<=sEdge;u+=sEdge/40){
-      if(u>hMax)break;
-      pts.push(fieldPt(dir*u,u));
-    }
-    line(pts,col,lw*0.8,[10,6]);
+    const p0=fieldPt(0,0), p1=fieldPt(dir*sEdge,sEdge);
+    if(p0&&p1)line([p0,p1],col,lw*0.8,[10,6]);
   }
   label(fieldPt(0,8),"45°",col);
   // 両サイド端から中央へ45°上昇
   for(const dir of [-1,1]){
-    const pts=[];
-    for(let u=0;u<=sEdge*1.2;u+=sEdge/40){
-      pts.push(fieldPt(dir*(sEdge-u),u));
-    }
-    line(pts,col,lw*0.8,[4,6]);
+    const p0=fieldPt(dir*sEdge,0), p1=fieldPt(dir*(sEdge-sEdge*1.2),sEdge*1.2);
+    if(p0&&p1)line([p0,p1],col,lw*0.8,[4,6]);
     label(fieldPt(dir*(sEdge-10),18),"45°",col);
   }
 }
