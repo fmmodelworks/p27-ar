@@ -108,6 +108,11 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       </div>
     </div>
     <div class="row">
+      <label>上空の直線化 <span class="val" id="vStr">70%</span></label>
+      <input type="range" id="rStr" min="0" max="100" step="5" value="70">
+      <div style="font-size:11px;color:#5f8a72;margin-top:2px">0%=カメラ映像と厳密一致(上空が湾曲) / 100%=角度等間隔(境界線・水平線が直線的、目視の感覚に近い)</div>
+    </div>
+    <div class="row">
       <label>カメラ垂直FOV(機種較正)<span class="val" id="vFov">55°</span></label>
       <input type="range" id="rFov" min="30" max="90" step="1" value="55">
     </div>
@@ -141,13 +146,13 @@ input[type=range]{width:100%;accent-color:#0fbf74}
       <div id="csvStat" style="font-size:11px;color:#5f8a72;margin-top:4px">未読込(内蔵P-27名称を使用)</div>
     </div>
     <button class="primary" style="width:100%" id="btnClose">閉じる</button>
-    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.0</div>
+    <div style="text-align:center;font-size:11px;color:#5f8a72;margin-top:10px">F3A AR FIELD — Version v3.1</div>
   </div>
 </div>
 
 <script>
 "use strict";
-const APP_VERSION="v3.0";
+const APP_VERSION="v3.1";
 document.getElementById("ver").textContent="Version "+APP_VERSION+" (2026-07)";
 const $=id=>document.getElementById(id);
 const cam=$("cam"),ovl=$("ovl"),ctx=ovl.getContext("2d");
@@ -234,7 +239,13 @@ function project(azDeg, elDeg){
   const t=((S.flipRot?-1:1)*sc + (S.rotOfs||0))*D2R,cT=Math.cos(t),sT=Math.sin(t);
   const sx= dx*cT + dy*sT;     // 画面右成分
   const sy=-dx*sT + dy*cT;     // 画面上成分
-  return {x:W/2 + f*sx/fwd, y:H/2 - f*sy/fwd};
+  // 投影: 透視(カメラ一致) ⇔ 角度等間隔(直線的な見え方) をブレンド
+  const b=(S.straighten||0)/100;
+  const rl_x=sx/fwd, rl_y=sy/fwd;                          // 透視
+  const eq_x=Math.atan2(sx,fwd), eq_y=Math.atan2(sy,Math.hypot(sx,fwd)); // 角度等間隔
+  const px=f*((1-b)*rl_x + b*eq_x);
+  const py=f*((1-b)*rl_y + b*eq_y);
+  return {x:W/2 + px, y:H/2 - py};
 }
 function norm180(d){d=((d+180)%360+360)%360-180;return d;}
 
@@ -487,6 +498,8 @@ $("segDist").addEventListener("click",e=>{
   $("vDist").textContent=S.dist+" m";$("hDist").textContent=S.dist+"m";saveCal();
 });
 $("rFov").addEventListener("input",e=>{S.vfov=+e.target.value;$("vFov").textContent=S.vfov+"°";saveCal();});
+S.straighten=70;
+$("rStr").addEventListener("input",e=>{S.straighten=+e.target.value;$("vStr").textContent=S.straighten+"%";saveCal();});
 $("rTrim").addEventListener("input",e=>{S.trim=+e.target.value;$("vTrim").textContent=(+e.target.value).toFixed(1)+"°";});
 for(const [id,key] of [["ckBox","box"],["ckCenter","center"],["ckElev","elev"],["ckHorizon","horizon"],["ckHeight","height"],["ck45","deg45"]]){
   $(id).addEventListener("change",e=>S.show[key]=e.target.checked);
@@ -503,7 +516,7 @@ $("segOfs").addEventListener("click",e=>{
 });
 // 較正値の保存/復元
 function saveCal(){
-  try{localStorage.setItem("f3a_ar_cal",JSON.stringify({rotOfs:S.rotOfs,flipRot:S.flipRot,vfov:S.vfov,dist:S.dist}));}catch(e){}
+  try{localStorage.setItem("f3a_ar_cal",JSON.stringify({rotOfs:S.rotOfs,flipRot:S.flipRot,vfov:S.vfov,dist:S.dist,straighten:S.straighten}));}catch(e){}
 }
 (function loadCal(){
   try{
@@ -513,6 +526,7 @@ function saveCal(){
       const on=$("segOfs").querySelector("button.on");if(on)$("vOfs").textContent=on.textContent;}
     if(c.flipRot){S.flipRot=true;$("ckFlip").checked=true;}
     if(c.vfov){S.vfov=c.vfov;$("rFov").value=c.vfov;$("vFov").textContent=c.vfov+"°";}
+    if(c.straighten!=null){S.straighten=c.straighten;$("rStr").value=c.straighten;$("vStr").textContent=c.straighten+"%";}
     if(c.dist){S.dist=c.dist;$("hDist").textContent=c.dist+"m";$("vDist").textContent=c.dist+" m";
       $("segDist").querySelectorAll("button").forEach(x=>x.classList.toggle("on",+x.dataset.d===c.dist));}
   }catch(e){}
